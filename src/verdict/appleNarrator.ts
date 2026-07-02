@@ -1,13 +1,12 @@
 import { apple } from '@react-native-ai/apple';
 import { generateObject, jsonSchema } from 'ai';
 import { buildSummary, templatedNarrator } from './templatedNarrator';
-import { buildTemplatedQuestions } from './questions';
 import {
   buildApplePrompt,
+  composeBoundedQuestions,
   OUTPUT_SCHEMA,
   resolveQuotedNotes,
   SYSTEM_PROMPT,
-  toQuestions,
   type AppleModelOutput,
 } from './applePrompt';
 import type { VerdictInput, VerdictNarrative, VerdictNarrator } from './types';
@@ -54,15 +53,13 @@ async function runAppleStructured(prompt: string): Promise<AppleModelOutput> {
 export const appleNarrator: VerdictNarrator = {
   async generate(input: VerdictInput): Promise<VerdictNarrative> {
     const out = await runAppleStructured(buildApplePrompt(input));
-    // Belt-and-braces: if the model returned too few usable questions, top up from templated so
-    // the checkpoint is never thin. Notes are always the user's verbatim text (extractive).
-    const questions = toQuestions(out.questions);
-    const filled =
-      questions.length >= 2 ? questions : [...questions, ...buildTemplatedQuestions(input.sliding)].slice(0, 3);
+    // Bounded hybrid: the model contributes at most ONE reflective question (advice-filtered) +
+    // its note ranking; the templated backbone carries the rest. Notes stay verbatim (extractive).
+    const questions = composeBoundedQuestions(out.questions, input.sliding);
     const quoted = resolveQuotedNotes(input, out.relevantNoteDates);
     return {
       summary: buildSummary(input), // summary stays deterministic — no need to spend model context on it
-      questions: filled,
+      questions,
       quotedNotes: quoted.length ? quoted : (await templatedNarrator.generate(input)).quotedNotes,
       provider: 'apple',
     };

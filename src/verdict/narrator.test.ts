@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildSummary, templatedNarrator } from './templatedNarrator';
-import { buildApplePrompt, resolveQuotedNotes } from './applePrompt';
+import { buildApplePrompt, composeBoundedQuestions, isReflective, resolveQuotedNotes } from './applePrompt';
 import type { VerdictInput } from './types';
 
 const input: VerdictInput = {
@@ -55,5 +55,57 @@ describe('appleNarrator pure helpers', () => {
     const out = resolveQuotedNotes(input, ['2026-06-11', '2026-06-11', 'nope']);
     expect(out).toHaveLength(1);
     expect(out[0].note).toBe('Skipped the gym'); // user's exact words, never rephrased
+  });
+});
+
+describe('isReflective (advice guardrail)', () => {
+  it('rejects the real advice-drift question that failed on device', () => {
+    // The exact Q3 the on-device model emitted — prescriptive, must be filtered.
+    expect(
+      isReflective('How have you been managing stress, and what strategies might you consider implementing to improve your sleep?'),
+    ).toBe(false);
+  });
+
+  it('rejects prescriptive / feelings questions', () => {
+    expect(isReflective('What could you try to sleep better?')).toBe(false);
+    expect(isReflective('How might you improve your energy?')).toBe(false);
+    expect(isReflective('Why do you feel so low lately?')).toBe(false);
+    expect(isReflective('Have you considered a new routine?')).toBe(false);
+  });
+
+  it('keeps context/cause questions', () => {
+    expect(isReflective('What was different about the weeks your sleep dipped?')).toBe(true);
+    expect(isReflective('What changes in your work schedule might have contributed to the lack of sleep?')).toBe(true);
+    expect(isReflective('What was going on at home during the lower days?')).toBe(true);
+  });
+});
+
+describe('composeBoundedQuestions (bounded hybrid)', () => {
+  const sliding = input.sliding;
+
+  it('places one filtered model question first, then keeps the signal-vs-noise backbone', () => {
+    const q = composeBoundedQuestions(['What was going on at work while this slid?'], sliding);
+    expect(q.length).toBeLessThanOrEqual(3);
+    expect(q[0].source).toBe('apple');
+    expect(q[0].text).toContain('work');
+    // the templated signal-vs-noise question always survives as the closer
+    expect(q[q.length - 1].text.toLowerCase()).toContain('rough patch');
+    // at most ONE model-authored question
+    expect(q.filter((x) => x.source === 'apple')).toHaveLength(1);
+  });
+
+  it('drops a prescriptive model question and falls back to fully templated', () => {
+    const q = composeBoundedQuestions(['What strategies could you try to improve sleep?'], sliding);
+    expect(q.every((x) => x.source === 'templated')).toBe(true);
+    expect(q[q.length - 1].text.toLowerCase()).toContain('rough patch');
+  });
+
+  it('picks the first REFLECTIVE model question when several are offered', () => {
+    const q = composeBoundedQuestions(
+      ['You should try meditation.', 'What changed at work when this dipped?'],
+      sliding,
+    );
+    expect(q[0].source).toBe('apple');
+    expect(q[0].text).toContain('changed at work');
   });
 });

@@ -43,6 +43,34 @@ The core app only measures and signals trends. A chatbot could help the user *in
 
 ---
 
+## 2. Per-pillar "why it matters" values anchor
+
+**What**
+An OPTIONAL, per-pillar short free-text "why does this matter to me?" (ACT-style *values* clarification — explicitly NOT a goal, NOT an affirmation, NOT an implementation intention). Captured lazily (never forced at onboarding — an optional expand on the pillar + offered at the ~30-day priorities review), stored on-device, NEVER scored or tracked. Surfaced only as a private reflection *mirror* at reflection moments.
+
+**Why**
+Today the checkpoint reflects against *data only* ("your score dropped"). A values anchor adds the "is what I actually care about at risk?" dimension — sharpening the real-problem-vs-passing-dip call. Natural home = the priorities check-in (§ hybrid cadence, still unbuilt).
+
+**Rough shape**
+Optional text on each pillar; re-shown at the priorities review and (carefully — see risks) the decline checkpoint, worded to invite update, never to enforce.
+
+**Evidence verdict (2026-07-02)** — *deep-research pass, 108 agents / 25 sources / 107 claims / adversarial verify (23 confirmed, 2 refuted); confidence tags per `docs/RESEARCH.md` convention.*
+
+> **Verdict: NET-POSITIVE, but conditional — proceed only under specific wording/placement guardrails, and justify it as *reflection-quality support*, NOT a motivation intervention.** The plan's own instincts (values not manifestation; optional; private; never scored) are validated by the evidence. But the research overturned two design assumptions we started with (see ⚠️ below).
+
+- **[HIGH] The format is well-evidenced.** Written values-clarification has a small-but-real, well-replicated wellbeing benefit (2025 APA meta-analysis, Zhang et al., ~17,700 nonclinical, ES .22–.32). The single best-evidenced paradigm is *value* affirmation — briefly writing *why* a cherished value matters (k=114 vs 15 attribute affirmation) — a near-exact match to "why this pillar matters."
+- **[HIGH] Values-REASON framing dodges the backfire classes.** The two documented harms are (a) declarative affirmations ("I'm a lovable person" — worsened low-self-esteem mood, Wood 2009) and (b) idealized-future "manifestation" fantasies (Oettingen 2016: positive fantasies predicted *increased* depression over 1–7 months). A reality-anchored *reason* is neither → the safe category. Confirms rejecting the "manifestation" framing was correct.
+- **⚠️ [HIGH — design correction #1] Broaden AWAY from the threatened pillar, don't isolate it.** The buffering benefit works by *broadening* the self-concept so the threatened domain "isn't all that defines the self"; classic self-affirmation affirms an *unrelated* value. So the plan's "surface the declining pillar's own *why* at the low moment" focuses attention *onto* the threat — opposite to the mechanism. Fix: at the checkpoint, frame the mirror as *one pillar among three / your whole picture* ("is this still true for you?"), not a spotlight on the failing pillar.
+- **⚠️ [HIGH — placement risk] The decline checkpoint is the RISKIER home.** The strongest benefit evidence explicitly *excluded* clinical/distressed populations — exactly the sustained-low state the checkpoint targets. Value-aligned setbacks *sting more* (self-concordance; failed self-concordant goals → wellbeing decrement). Self-referential writing can harm low-self-esteem users. → Prefer the **neutral ~30-day priorities review** as the primary surface; at the checkpoint, soften/broaden and always offer "this has changed / edit / not now."
+- **[HIGH] Self-discrepancy risk is real but MODEST + moderatable.** A stated "why" could become an ideal/ought standard, but the association with distress is small-medium (r≈.23–.27, Mason 2019), transdiagnostic (Higgins' ideal→dejection/ought→agitation specificity NOT supported), and *buffered by agency/resilience* — which is precisely why optionality, editability, and non-judgmental wording are active safety levers.
+- **[MED] Wording: approach-orientation > micro-tuning.** Elicit an *approach* reason ("what Health lets me do / points me toward"), not loss/ought framing; could/should swaps were null (don't over-engineer).
+- **[GAP] Lazy vs onboarding capture is UNANSWERED** (no surviving evidence). Lazy/optional is defensible on first principles (agency; "support when a user isn't receptive can harm engagement") but is a DESIGN-DECISION, not evidence-backed.
+- **[REFUTED — do not design on these]** (a) an affirmation *timing* guardrail (must arrive "before" a defensive conclusion) — didn't survive, so no basis to withhold the mirror "until early"; (b) that the *content* of one's "why" causally improves wellbeing — the study was goal-based; so the "improves motivation" leg is weak → **justify as reflection-quality, not motivation.**
+
+**If built — guardrails (all evidence-derived):** optional + editable + dismissible · approach-worded values-*reason*, never ought/affirmation/idealized-outcome · non-scored, non-tracked · primary surface = the neutral priorities review (not the low checkpoint) · at the checkpoint, broaden (one pillar among three) + offer "changed / edit / not now" · consider a soft BetterHelp signpost if a user marks a "why" as threatened. Sits behind the priorities check-in and the crisis/BetterHelp split.
+
+---
+
 ## Template for new ideas
 
 ```
