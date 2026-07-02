@@ -18,9 +18,10 @@ export interface DayPoint {
 
 export interface TrendConfig {
   windowDays: number; // rolling window length
-  minLoggedDays: number; // need at least this many logged days in the window
+  minLoggedDays: number; // real logged days needed before the trend is "confident" (and a verdict may fire)
   declineMagnitudeSd: number; // projected change must exceed this × series SD…
   magnitudeFloor: number; // …or this absolute floor, whichever is larger
+  neutralValue: number; // unlogged days count as this in the maths (scale midpoint — an "unknown = neutral" prior)
   cooldownDays: number; // suppress re-triggering for this long after a verdict
 }
 
@@ -32,6 +33,8 @@ export const DEFAULT_TREND_CONFIG: TrendConfig = {
   // SD-relative and auto-scales, but this floor is tied to the scale span, so it was
   // re-derived proportionally when the scale shrank 0–10 → 1–5: 0.5 × (4/10) ≈ 0.2.
   magnitudeFloor: 0.2,
+  // Midpoint of the 1–5 scale (config.SCALE). Re-derive if the scale span changes.
+  neutralValue: 3,
   cooldownDays: 14,
 };
 
@@ -39,7 +42,8 @@ export interface TrendResult {
   state: TrendState;
   slopePerDay: number; // units of score per calendar day
   projectedChange: number; // slope × (window span) — net change across the window
-  loggedDays: number;
+  loggedDays: number; // REAL logged days (unlogged days are not counted here)
+  confident: boolean; // enough real data to trust the direction / escalate to a verdict
   mean: number;
   sd: number;
 }
@@ -71,26 +75,26 @@ function stdDev(xs: number[], mean: number): number {
 
 /**
  * Detect the trend over a window. `points` should be the last `windowDays` calendar days
- * (oldest first); gaps are represented by value === null and advance the x-axis so slope
- * reflects real elapsed time, not just logged-sample order.
+ * (oldest first); gaps are represented by value === null.
+ *
+ * Unlogged days are filled with `cfg.neutralValue` (the scale midpoint) for the maths — an
+ * "unknown = neutral" prior that regularises a sparse window toward "steady" instead of
+ * over-reacting to a couple of points, and lets us always show *a* direction rather than a
+ * blackout. `loggedDays` counts only the REAL entries, and `confident` gates on it: below
+ * `minLoggedDays` real days we still show the trend but flag it low-confidence and never
+ * escalate to a verdict (see `shouldTriggerVerdict`).
  */
 export function detectTrend(points: DayPoint[], cfg: TrendConfig = DEFAULT_TREND_CONFIG): TrendResult {
   const span = Math.max(points.length - 1, 1);
-  const logged: { x: number; y: number }[] = [];
-  points.forEach((p, i) => {
-    if (p.value != null) logged.push({ x: i, y: p.value });
-  });
+  const loggedDays = points.reduce((n, p) => n + (p.value != null ? 1 : 0), 0);
+  const filled = points.map((p, i) => ({ x: i, y: p.value ?? cfg.neutralValue }));
 
-  const values = logged.map((p) => p.y);
+  const values = filled.map((p) => p.y);
   const mean = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
   const sd = stdDev(values, mean);
-  const loggedDays = logged.length;
+  const confident = loggedDays >= cfg.minLoggedDays;
 
-  if (loggedDays < cfg.minLoggedDays) {
-    return { state: 'insufficient', slopePerDay: 0, projectedChange: 0, loggedDays, mean, sd };
-  }
-
-  const slope = theilSenSlope(logged);
+  const slope = theilSenSlope(filled);
   const projectedChange = slope * span;
   const threshold = Math.max(cfg.declineMagnitudeSd * sd, cfg.magnitudeFloor);
 
@@ -98,7 +102,7 @@ export function detectTrend(points: DayPoint[], cfg: TrendConfig = DEFAULT_TREND
   if (projectedChange <= -threshold) state = 'declining';
   else if (projectedChange >= threshold) state = 'improving';
 
-  return { state, slopePerDay: slope, projectedChange, loggedDays, mean, sd };
+  return { state, slopePerDay: slope, projectedChange, loggedDays, confident, mean, sd };
 }
 
 /**
@@ -112,7 +116,7 @@ export function shouldTriggerVerdict(
   cfg: TrendConfig = DEFAULT_TREND_CONFIG,
 ): boolean {
   if (result.state !== 'declining') return false;
-  if (result.loggedDays < cfg.minLoggedDays) return false;
+  if (!result.confident) return false; // never escalate on mostly-inferred (neutral-filled) data
   if (lastVerdictAtMs != null && nowMs - lastVerdictAtMs < cfg.cooldownDays * 86_400_000) return false;
   return true;
 }

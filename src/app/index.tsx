@@ -29,10 +29,14 @@ import { buildPillarTrends, decliningPillars, joinNames, pillarHighlight, type P
 import { refreshTrend } from '@/trend/refresh';
 import { buildDailySeries } from '@/trend/series';
 
-function statsOf(points: DayPoint[]) {
-  const vals = points.filter((p) => p.value != null).map((p) => p.value as number);
-  const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-  return { avg, logged: vals.length };
+const NEUTRAL_SCORE = (SCALE.min + SCALE.max) / 2; // scale midpoint — matches the trend engine's neutral fill
+
+function statsOf(points: DayPoint[], neutral: number) {
+  // Average treats unlogged days as neutral (an "unknown = neutral" prior, matching the trend
+  // engine); the logged count stays the real number of days scored.
+  const logged = points.filter((p) => p.value != null).length;
+  const avg = points.length ? points.reduce((a, p) => a + (p.value ?? neutral), 0) / points.length : null;
+  return { avg, logged };
 }
 
 /** Current run of recent days at a positive level (≥4/5). A missed day doesn't break it. */
@@ -60,6 +64,7 @@ export default function TrendHome() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [filter, setFilter] = useState(-1); // -1 = All, else pillar index
   const trendState = useAppStore((s) => s.trendState);
+  const confident = useAppStore((s) => s.trend?.confident ?? false);
   const verdictReady = useAppStore((s) => s.verdictReady);
   const dial = useAppStore((s) => s.dial);
   const pillarsOpen = useAppStore((s) => s.pillarsOpen);
@@ -109,12 +114,12 @@ export default function TrendHome() {
   // Chart follows the filter: All = composite (trend colour), else the pillar's own value colour.
   const chartPoints = filter === -1 ? series : trends[filter]?.points ?? [];
   const chartColor = filter === -1 ? accentEnergy(dial, trendColor(trendState)) : scoreColor(latest[trends[filter]?.pillarId] ?? null);
-  const stats = statsOf(chartPoints);
+  const stats = statsOf(chartPoints, NEUTRAL_SCORE);
   const streak = positiveStreak(chartPoints);
 
-  const highlight = trendState !== 'insufficient' ? pillarHighlight(trends) : null;
+  // A personal reading only once there's enough real data; below that we stay low-confidence.
+  const highlight = confident ? pillarHighlight(trends) : null;
   const sliding = decliningPillars(trends);
-  const daysToFirstRead = Math.max(0, cfg.minLoggedDays - logged.length);
 
   const radius = Math.max(dialRadius(dial), 24);
 
@@ -144,9 +149,9 @@ export default function TrendHome() {
           <Text variant="displayMedium" style={styles.big}>
             Your trend
           </Text>
-          {trendState === 'insufficient' && daysToFirstRead > 0 ? (
-            <Text variant="bodyMedium" style={[styles.firstRead, { color: theme.colors.onSurfaceVariant }]}>
-              Your first read comes after {cfg.minLoggedDays} logged days — {daysToFirstRead} to go.
+          {!confident ? (
+            <Text variant="bodyMedium" style={[styles.learningLine, { color: theme.colors.onSurfaceVariant }]}>
+              Still learning about you — keep checking in and your trend comes into focus.
             </Text>
           ) : null}
         </AnimatedCard>
@@ -251,6 +256,6 @@ const styles = StyleSheet.create({
   checkpoint: { padding: 18, marginTop: 20, borderWidth: 1 },
   cpMsg: { marginTop: 10 },
   cta: { marginTop: 16, height: 52, alignItems: 'center', justifyContent: 'center' },
-  firstRead: { marginTop: 8 },
+  learningLine: { marginTop: 8 },
   highlight: { textAlign: 'center', opacity: 0.9 },
 });

@@ -71,6 +71,9 @@ export default function TodayScreen() {
     <ScrollView
       style={{ backgroundColor: theme.colors.background }}
       contentContainerStyle={[styles.container, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24 }]}
+      automaticallyAdjustKeyboardInsets
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
     >
       <AnimatedCard index={0} dial={dial}>
         <Text variant="labelMedium" style={[styles.date, { color: theme.colors.onSurfaceVariant }]}>

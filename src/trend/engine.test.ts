@@ -43,19 +43,31 @@ describe('detectTrend', () => {
     expect(detectTrend(series(vals)).state).toBe('improving');
   });
 
-  it('returns insufficient when too few days are logged', () => {
+  it('is not confident when too few real days are logged', () => {
     const vals: (number | null)[] = Array(20).fill(null);
-    for (let i = 0; i < 5; i++) vals[i] = 8 - i; // only 5 logged
+    for (let i = 0; i < 5; i++) vals[i] = 8 - i; // only 5 real logged
     const r = detectTrend(series(vals));
-    expect(r.state).toBe('insufficient');
+    expect(r.confident).toBe(false);
     expect(r.loggedDays).toBe(5);
   });
 
-  it('tolerates gaps and still detects decline', () => {
+  it('counts only real days in loggedDays and stays confident above the gate', () => {
     const vals = Array.from({ length: 20 }, (_, i) => (i % 4 === 0 ? null : 8 - (5 * i) / 19));
     const r = detectTrend(series(vals));
-    expect(r.loggedDays).toBeGreaterThanOrEqual(DEFAULT_TREND_CONFIG.minLoggedDays);
-    expect(r.state).toBe('declining');
+    expect(r.loggedDays).toBe(15); // the 5 gap days are not counted as real
+    expect(r.confident).toBe(true);
+    expect(r.state).toBe('declining'); // neutral-fill on the gaps doesn't mask a real slide
+  });
+
+  it('regularises a sparse window toward steady rather than alarming', () => {
+    // 3 real low scores early, the rest unlogged → neutral-filled → not a declining alarm
+    const vals: (number | null)[] = Array(20).fill(null);
+    vals[0] = 1;
+    vals[1] = 1;
+    vals[2] = 2;
+    const r = detectTrend(series(vals));
+    expect(r.confident).toBe(false);
+    expect(r.state).not.toBe('declining');
   });
 
   // Scale is now 1–5 (config.SCALE v2). These assert the re-tuned magnitudeFloor (0.2)
