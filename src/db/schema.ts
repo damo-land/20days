@@ -45,6 +45,7 @@ export const verdictEvents = sqliteTable('verdict_events', {
   windowEnd: text('window_end'),
   userAction: text('user_action'), // 'ignore' | 'adjust' | 'support'
   cooldownUntil: integer('cooldown_until'),
+  reflection: text('reflection'), // the user's own optional written response at the checkpoint (local-only)
 });
 
 export type Pillar = typeof pillars.$inferSelect;

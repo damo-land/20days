@@ -132,7 +132,9 @@ export function recordVerdict(v: {
   windowEnd: string;
   userAction: 'ignore' | 'adjust' | 'support';
   cooldownUntilMs: number;
+  reflection?: string | null;
 }): void {
+  const reflection = v.reflection?.trim() || null;
   db.insert(verdictEvents)
     .values({
       triggeredAt: nowSec(),
@@ -141,6 +143,7 @@ export function recordVerdict(v: {
       windowEnd: v.windowEnd,
       userAction: v.userAction,
       cooldownUntil: v.cooldownUntilMs,
+      reflection,
     })
     .run();
 }

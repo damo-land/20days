@@ -39,7 +39,13 @@
         }
       ],
       "expo-sqlite",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-build-properties",
+        {
+          "ios": { "buildReactNativeFromSource": true }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

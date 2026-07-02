@@ -49,7 +49,20 @@ export function initDb(): void {
       window_start TEXT,
       window_end TEXT,
       user_action TEXT,
-      cooldown_until INTEGER
+      cooldown_until INTEGER,
+      reflection TEXT
     );
   `);
+  // Additive column migration for DBs created before `reflection` existed. CREATE TABLE
+  // IF NOT EXISTS can't add a column to an existing table, so ALTER and swallow the
+  // "duplicate column" error that fires once the column is already present.
+  addColumnIfMissing('verdict_events', 'reflection', 'TEXT');
+}
+
+/** Idempotent single-column add. Safe to call on every launch (throws → column exists → ignore). */
+function addColumnIfMissing(table: string, column: string, type: string): void {
+  const exists = expoDb
+    .getAllSync<{ name: string }>(`PRAGMA table_info(${table})`)
+    .some((c) => c.name === column);
+  if (!exists) expoDb.execSync(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
 }

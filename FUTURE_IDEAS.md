@@ -39,6 +39,8 @@ The core app only measures and signals trends. A chatbot could help the user *in
 
 **If ever built — narrowest viable design (an *interpreter*, not a *companion*):** fires **only at Verdict Day** (never daily, never always-on); **no persona, no name, no relationship, no open thread**; generates **reflection questions grounded in the user's own logged data, not answers/advice** (interpreter-not-author, per DiaryMate remedy); hard low message cap; **pre-computed / on-device** to preserve local-first; mandatory crisis-detection → hotline routing → end conversation (Ebb bar); still fully dismissible (agency). This is an *enhancement of Verdict Day §3.3*, not a chatbot — and it should wait behind the priorities check-in and the crisis/BetterHelp split.
 
+**Build status (July 2026)** — the narrow interpreter is now partly built as the **Verdict narrator** (`src/verdict/`). **Phase 1 (shipped, Expo Go):** templated (no-AI) interpreter — grounded reflection questions + relevance-selected verbatim notes + one optional written reflection; no persona, no chat, no advice. **Phase 2 (scaffolded, INERT):** on-device **Apple Foundation Models** behind the same seam (`appleNarrator.ts`, `APPLE_BACKEND_INSTALLED = false`) — private, never cloud; generates note-aware questions + extractively ranks notes. **Still owed before Phase 2 ships:** the crisis-tier gate (floor scores → skip journaling, route to hotline) — the timing-paradox mitigation — and on-device verification (needs a dev build + iOS 26 / A17-Pro+ device). OpenRouter/cloud was explicitly rejected (keep it sealed on-device).
+
 ---
 
 ## Template for new ideas
