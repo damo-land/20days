@@ -6,10 +6,10 @@
 export const BRAND = {
   cream: '#FDF6E9', // surface — a touch brighter than the original #FBF0E0, still warm (not white)
   card: '#FFF7EC', // raised / card
-  containerLow: '#F5EAD8', // surface container
-  containerHigh: '#EFE3CE', // surface container high
-  ink: '#2A3350', // text & primary
-  slate: '#5C5A57', // body copy
+  containerLow: '#F3E7D2', // surface container — slightly deeper so cards read crisper on cream
+  containerHigh: '#EBDDC4', // surface container high — more separation for higher-contrast round
+  ink: '#1E2540', // text & primary — deepened from #2A3350 for stronger contrast on cream
+  slate: '#4E4C49', // body copy — deepened from #5C5A57 for more readable contrast
   sand: '#A79470', // muted label
   sandDeep: '#8E8168', // muted-2
   primaryContainer: '#DEE4F1', // periwinkle (neutral accent, not a trend colour)

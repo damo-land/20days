@@ -21,21 +21,21 @@ The base is **fixed** and warm; the **accent is dynamic** and follows the trend 
 
 | Role | Name | Hex |
 |---|---|---|
-| Surface | Cream | `#FBF0E0` |
+| Surface | Cream | `#FDF6E9` |
 | Raised / card | Card | `#FFF7EC` |
-| Text & primary | Ink | `#2A3350` |
-| Body copy | Slate | `#5C5A57` |
+| Text & primary | Ink | `#1E2540` |
+| Body copy | Slate | `#4E4C49` |
 | Muted label | Sand | `#A79470` |
 
-**Trend scale (accent)** — `src/theme/trendColor.ts`. Colour *reports the trend*; it never decorates:
+**Trend scale (accent)** — `src/theme/trendColor.ts`. Colour *reports the trend*; it never decorates. Saturated round (July 2026) — punchier for higher contrast, declining stays warm ochre (never alarm-red):
 
 | Meaning | Hex | App state |
 |---|---|---|
-| Rising | `#2FA08F` | `improving` |
-| Steady | `#7FB48A` | `stable` |
-| Watch | `#E6C36A` | — |
-| Drifting | `#F0994C` | — |
-| Declining | `#E07636` | `declining` |
+| Rising | `#16A085` | `improving` |
+| Steady | `#4FB06A` | `stable` |
+| Watch | `#EBBB3F` | — |
+| Drifting | `#F58A2E` | — |
+| Declining | `#E85D2C` | `declining` |
 
 - **Neutral base, dynamic accent.** `buildTheme(trendState, dark)` fixes surface/primary to Cream/Ink and maps the M3 **secondary** role to the current trend colour; surfaces warm *very subtly* with the trend. Insufficient data → neutral Sand accent, no tint.
 - **Trend colour only where it reports a trend** — pillar states, rings, charts, the checkpoint accent. **Never** for general UI chrome (the floating nav stays neutral Ink).

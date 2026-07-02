@@ -7,11 +7,11 @@ import { BRAND } from './brand';
  * sand into ochre-orange. Warm, honest — never an alarming red.
  */
 export const TREND_SCALE = {
-  rising: '#2FA08F',
-  steady: '#7FB48A',
-  watch: '#E6C36A',
-  drifting: '#F0994C',
-  declining: '#E07636',
+  rising: '#16A085', // vivid teal — punchier than the old muted #2FA08F
+  steady: '#4FB06A', // saturated green (was #7FB48A)
+  watch: '#EBBB3F', // brighter gold (was #E6C36A)
+  drifting: '#F58A2E', // saturated orange (was #F0994C)
+  declining: '#E85D2C', // warm ochre-orange — more saturated, still NOT alarm-red (guardrail, RESEARCH §2.5)
 } as const;
 
 /** App trend state → its colour on the scale. Insufficient data is neutral Sand (no trend yet). */

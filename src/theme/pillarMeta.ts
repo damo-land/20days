@@ -6,22 +6,22 @@ import type { IconName } from '@/components/Icon';
  * the identity colour is used only in the picker — everywhere else colour stays semantic (score).
  */
 export const PRESET_META: Record<string, { icon: IconName; color: string }> = {
-  Health: { icon: 'heart', color: '#E0785C' },
-  Fitness: { icon: 'activity', color: '#2FA08F' },
-  Sleep: { icon: 'moon', color: '#5B6CB0' },
-  Work: { icon: 'briefcase', color: '#4A6FA5' },
-  Money: { icon: 'dollar', color: '#E0A32E' },
-  Relationships: { icon: 'heart', color: '#B5657A' },
-  Family: { icon: 'home', color: '#5FA98C' },
-  Friends: { icon: 'users', color: '#6E7FC2' },
-  Learning: { icon: 'book', color: '#D98859' },
-  Creativity: { icon: 'star', color: '#C77DAE' },
-  Mindfulness: { icon: 'leaf', color: '#3E7C63' },
-  Fun: { icon: 'smile', color: '#E6B22E' },
+  Health: { icon: 'heart', color: '#E85D3D' },
+  Fitness: { icon: 'activity', color: '#16A085' },
+  Sleep: { icon: 'moon', color: '#4B5BD6' },
+  Work: { icon: 'briefcase', color: '#2E6FD6' },
+  Money: { icon: 'dollar', color: '#F0A81E' },
+  Relationships: { icon: 'heart', color: '#C84E6E' },
+  Family: { icon: 'home', color: '#34A87A' },
+  Friends: { icon: 'users', color: '#5A6EE0' },
+  Learning: { icon: 'book', color: '#E5772E' },
+  Creativity: { icon: 'star', color: '#C85FA8' },
+  Mindfulness: { icon: 'leaf', color: '#1F8A63' },
+  Fun: { icon: 'smile', color: '#F0BE1E' },
 };
 
 export const PRESET_PILLARS = Object.keys(PRESET_META);
-export const CUSTOM_COLOR = '#6E7FC2';
+export const CUSTOM_COLOR = '#5A6EE0';
 
 /** Icon for any pillar name — custom pillars get the star. */
 export function pillarIcon(name: string): IconName {

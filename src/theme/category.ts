@@ -3,7 +3,7 @@
  * *rating* and shifts with the value: low warms to ochre, high cools to teal (the brand trend
  * scale, 1→5). Same mapping everywhere so a score reads the same colour throughout the app.
  */
-const SCORE_SCALE = ['#E07636', '#F0994C', '#E6C36A', '#7FB48A', '#2FA08F']; // 1 declining → 5 rising
+const SCORE_SCALE = ['#E85D2C', '#F58A2E', '#EBBB3F', '#4FB06A', '#16A085']; // 1 declining → 5 rising (mirrors TREND_SCALE, saturated round)
 export function scoreColor(value: number | null): string {
   if (value == null) return '#A79470'; // neutral sand
   return SCORE_SCALE[Math.max(1, Math.min(5, Math.round(value))) - 1];
