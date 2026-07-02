@@ -1,7 +1,6 @@
 import { SCALE } from '@/config';
-import { getScoreRowsSince } from '@/db/repo';
+import { getLastVerdictAtMs, getScoreRowsSince } from '@/db/repo';
 import { isoDaysAgo, todayISO } from '@/lib/date';
-import { settings } from '@/settings/settings';
 import { useAppStore } from '@/state/store';
 import { expressiveness } from '@/theme/expressive';
 import { DEFAULT_TREND_CONFIG, detectTrend, shouldTriggerVerdict } from './engine';
@@ -13,7 +12,7 @@ export function refreshTrend(): void {
   const rows = getScoreRowsSince(isoDaysAgo(cfg.windowDays - 1));
   const series = buildDailySeries(rows, cfg.windowDays, todayISO());
   const result = detectTrend(series, cfg);
-  const ready = shouldTriggerVerdict(result, settings.getLastVerdictAt(), Date.now(), cfg);
+  const ready = shouldTriggerVerdict(result, getLastVerdictAtMs(), Date.now(), cfg);
   const logged = series.filter((p) => p.value != null);
   const todayComposite = logged.length ? logged[logged.length - 1].value : null;
   const dial = expressiveness(result.state, todayComposite, SCALE.min, SCALE.max);

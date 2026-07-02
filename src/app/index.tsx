@@ -7,7 +7,6 @@ import { AboutSheet } from '@/components/AboutSheet';
 import { AnimatedCard } from '@/components/AnimatedCard';
 import { Fab } from '@/components/Fab';
 import { Icon, type IconName } from '@/components/Icon';
-import { Illustration } from '@/components/Illustration';
 import { NestedRings, type RingDatum } from '@/components/NestedRings';
 import { PillarsSheet } from '@/components/PillarsSheet';
 import { PressableScale } from '@/components/PressableScale';
@@ -69,32 +68,33 @@ export default function TrendHome() {
   // Gate runs once per launch, inside the focus effect so navigation is guaranteed ready.
   const gateRan = useRef(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      const date = todayISO();
-      const windowStart = isoDaysAgo(cfg.windowDays - 1);
-      const rows = getPillarScoreRowsSince(windowStart);
-      setSeries(buildDailySeries(rows, cfg.windowDays, date));
-      const loggedToday = getEntriesForDate(date).length > 0;
-      setHasToday(loggedToday);
-      const pillars = listPillars();
-      setTrends(buildPillarTrends(rows, pillars, cfg.windowDays, date));
-      const lt: Record<number, number | null> = {};
-      const byPillar: Record<number, { date: string; score: number }> = {};
-      for (const r of rows) {
-        const cur = byPillar[r.pillarId];
-        if (!cur || r.date > cur.date) byPillar[r.pillarId] = { date: r.date, score: r.score };
-      }
-      pillars.forEach((p) => (lt[p.id] = byPillar[p.id]?.score ?? null));
-      setLatest(lt);
-      refreshTrend();
+  // Also called directly after the pillars sheet saves — a Modal closing fires no focus event.
+  const load = useCallback(() => {
+    const date = todayISO();
+    const windowStart = isoDaysAgo(cfg.windowDays - 1);
+    const rows = getPillarScoreRowsSince(windowStart);
+    setSeries(buildDailySeries(rows, cfg.windowDays, date));
+    const loggedToday = getEntriesForDate(date).length > 0;
+    setHasToday(loggedToday);
+    const pillars = listPillars();
+    setTrends(buildPillarTrends(rows, pillars, cfg.windowDays, date));
+    const lt: Record<number, number | null> = {};
+    const byPillar: Record<number, { date: string; score: number }> = {};
+    for (const r of rows) {
+      const cur = byPillar[r.pillarId];
+      if (!cur || r.date > cur.date) byPillar[r.pillarId] = { date: r.date, score: r.score };
+    }
+    pillars.forEach((p) => (lt[p.id] = byPillar[p.id]?.score ?? null));
+    setLatest(lt);
+    refreshTrend();
 
-      if (!gateRan.current) {
-        gateRan.current = true;
-        if (settings.isOnboarded() && !loggedToday && !settings.isTodayDismissed(date)) router.push('/today');
-      }
-    }, [cfg.windowDays]),
-  );
+    if (!gateRan.current) {
+      gateRan.current = true;
+      if (settings.isOnboarded() && pillars.length > 0 && !loggedToday && !settings.isTodayDismissed(date)) router.push('/today');
+    }
+  }, [cfg.windowDays]);
+
+  useFocusEffect(load);
 
   const logged = series.filter((p) => p.value != null);
   const current = logged.length ? (logged[logged.length - 1].value as number) : null;
@@ -124,7 +124,8 @@ export default function TrendHome() {
     </PressableScale>
   );
 
-  if (!settings.isOnboarded()) return <Redirect href="/onboarding" />;
+  // Redirect covers the desync case too: onboarded flag set but no pillars in the DB.
+  if (!settings.isOnboarded() || listPillars().length === 0) return <Redirect href="/onboarding" />;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -143,21 +144,12 @@ export default function TrendHome() {
           <Text variant="displayMedium" style={styles.big}>
             Your trend
           </Text>
-        </AnimatedCard>
-
-        {trendState === 'insufficient' ? (
-          <AnimatedCard index={1} dial={dial} style={styles.empty}>
-            <Illustration name="growth" size={120} />
-            {daysToFirstRead > 0 ? (
-              <Text style={[styles.countdown, { color: theme.colors.onSurface }]}>
-                {daysToFirstRead} more {daysToFirstRead === 1 ? 'day' : 'days'}
-              </Text>
-            ) : null}
-            <Text variant="bodyMedium" style={styles.emptyText}>
-              …until your trend can tell a real slide from a rough week. Keep going.
+          {trendState === 'insufficient' && daysToFirstRead > 0 ? (
+            <Text variant="bodyMedium" style={[styles.firstRead, { color: theme.colors.onSurfaceVariant }]}>
+              Your first read comes after {cfg.minLoggedDays} logged days — {daysToFirstRead} to go.
             </Text>
-          </AnimatedCard>
-        ) : null}
+          ) : null}
+        </AnimatedCard>
 
         {/* Hero — 3/4 rings sit open on the surface (no card); legend lives in the ring's top-left opening */}
         <AnimatedCard index={1} dial={dial} style={styles.hero}>
@@ -219,7 +211,15 @@ export default function TrendHome() {
       <Fab dial={dial} onPress={() => router.push('/today')} label={hasToday ? undefined : 'Log today'} icon={hasToday ? 'check' : 'plus'} />
       <ReminderSheet visible={reminderOpen} onDismiss={() => setReminderOpen(false)} dial={dial} />
       <AboutSheet visible={aboutOpen} onDismiss={() => setAboutOpen(false)} dial={dial} />
-      <PillarsSheet visible={pillarsOpen} onDismiss={() => setPillarsOpen(false)} dial={dial} />
+      <PillarsSheet
+        visible={pillarsOpen}
+        onDismiss={() => setPillarsOpen(false)}
+        onSaved={() => {
+          setFilter(-1); // a stale pillar-index filter could silently point at a different pillar
+          load();
+        }}
+        dial={dial}
+      />
     </View>
   );
 }
@@ -251,8 +251,6 @@ const styles = StyleSheet.create({
   checkpoint: { padding: 18, marginTop: 20, borderWidth: 1 },
   cpMsg: { marginTop: 10 },
   cta: { marginTop: 16, height: 52, alignItems: 'center', justifyContent: 'center' },
-  empty: { alignItems: 'center', gap: 10, marginTop: 18, paddingHorizontal: 8 },
-  emptyText: { opacity: 0.7, textAlign: 'center' },
-  countdown: { fontFamily: DISPLAY_FONT, fontSize: 30, letterSpacing: -0.5 },
+  firstRead: { marginTop: 8 },
   highlight: { textAlign: 'center', opacity: 0.9 },
 });

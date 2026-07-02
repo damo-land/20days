@@ -8,7 +8,6 @@ const K = {
   onboarded: 'onboarded',
   reminderTime: 'reminderTime',
   reminderOn: 'reminderOn',
-  lastVerdictAt: 'lastVerdictAt',
   todayDismissed: 'todayDismissed', // ISO date the user skipped the check-in (so we don't nag)
 } as const;
 
@@ -21,12 +20,6 @@ export const settings = {
 
   isReminderOn: () => (Storage.getItemSync(K.reminderOn) ?? '1') === '1',
   setReminderOn: (v: boolean) => Storage.setItemSync(K.reminderOn, v ? '1' : '0'),
-
-  getLastVerdictAt: (): number | null => {
-    const v = Storage.getItemSync(K.lastVerdictAt);
-    return v ? Number(v) : null;
-  },
-  setLastVerdictAt: (ms: number) => Storage.setItemSync(K.lastVerdictAt, String(ms)),
 
   /** Per-day "skipped the check-in" flag — so a skipped Today doesn't reappear until tomorrow. */
   isTodayDismissed: (dateISO: string) => Storage.getItemSync(K.todayDismissed) === dateISO,

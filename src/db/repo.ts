@@ -1,23 +1,44 @@
-import { and, desc, eq, gte, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, gte, isNotNull, isNull } from 'drizzle-orm';
 import { db } from './client';
 import { entries, pillars, prioritiesRevisions, verdictEvents, type Entry, type Pillar } from './schema';
+import { diffPillarEdit, type PillarEdit } from './pillarDiff';
+import { SCALE } from '@/config';
 import type { ScoreRow } from '@/trend/series';
 
 const nowSec = () => Math.floor(Date.now() / 1000);
 
 // ---- Pillars ----------------------------------------------------------------
 
+/** The active 3 pillars. Archived ones keep their entry history but never surface in the UI. */
 export function listPillars(): Pillar[] {
-  return db.select().from(pillars).orderBy(pillars.sortOrder).all();
+  return db.select().from(pillars).where(isNull(pillars.archivedAt)).orderBy(pillars.sortOrder).all();
 }
 
 export function createInitialPillars(names: string[]): void {
+  if (listPillars().length) return; // idempotent — a double-tap on onboarding must not duplicate pillars
   names.forEach((name, i) => db.insert(pillars).values({ name, sortOrder: i }).run());
   snapshotPriorities('onboarding');
 }
 
-export function updatePillar(id: number, patch: { name?: string; description?: string | null }): void {
-  db.update(pillars).set(patch).where(eq(pillars.id, id)).run();
+/**
+ * Apply a 3-name selection from the picker: names that match keep their row (id + history,
+ * reordered as needed); the rest are archived and replaced by brand-new rows with zero
+ * history. Diffs against fresh DB state and returns the edit so callers can branch on
+ * `changed` / `replaced` (a replacement restarts the verdict cooldown).
+ */
+export function applyPillarEdit(selectedNames: string[]): PillarEdit {
+  const edit = diffPillarEdit(listPillars(), selectedNames);
+  if (!edit.changed) return edit;
+  const archivedAt = nowSec();
+  db.transaction(() => {
+    edit.kept.forEach((k) => db.update(pillars).set({ sortOrder: k.sortOrder }).where(eq(pillars.id, k.id)).run());
+    edit.archived.forEach((id) => db.update(pillars).set({ archivedAt }).where(eq(pillars.id, id)).run());
+    edit.created.forEach((c) => db.insert(pillars).values({ name: c.name, sortOrder: c.sortOrder }).run());
+    // Snapshot AFTER the changes so priorities_revisions records the new definition. The sync
+    // driver shares one connection, so these module-level `db` calls join the open transaction.
+    snapshotPriorities('edited pillars');
+  });
+  return edit;
 }
 
 /** Append the current pillar definition to history ("priorities change over time"). */
@@ -40,7 +61,7 @@ export function upsertEntry(row: {
   scaleVersion?: number;
 }): void {
   const note = row.note ?? null;
-  const scaleVersion = row.scaleVersion ?? 1;
+  const scaleVersion = row.scaleVersion ?? SCALE.version;
   db.insert(entries)
     .values({ pillarId: row.pillarId, date: row.date, score: row.score, note, scaleVersion })
     .onConflictDoUpdate({
@@ -89,6 +110,21 @@ export function getNotesSince(sinceISO: string, limit = 3): { date: string; note
 }
 
 // ---- Verdict events ---------------------------------------------------------
+
+/**
+ * Epoch ms of the most recent verdict/pillar-change event — verdict_events is the single
+ * source of truth for the cooldown. `triggered_at` is stored in SECONDS; the engine
+ * compares MILLISECONDS, so the ×1000 is load-bearing.
+ */
+export function getLastVerdictAtMs(): number | null {
+  const row = db
+    .select({ t: verdictEvents.triggeredAt })
+    .from(verdictEvents)
+    .orderBy(desc(verdictEvents.triggeredAt))
+    .limit(1)
+    .get();
+  return row ? row.t * 1000 : null;
+}
 
 export function recordVerdict(v: {
   reason: string;

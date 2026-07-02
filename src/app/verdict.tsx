@@ -9,7 +9,6 @@ import { PressableScale } from '@/components/PressableScale';
 import { SUPPORT_URL } from '@/config';
 import { getNotesSince, getPillarScoreRowsSince, getScoreRowsSince, listPillars, recordVerdict } from '@/db/repo';
 import { isoDaysAgo, todayISO } from '@/lib/date';
-import { settings } from '@/settings/settings';
 import { BRAND } from '@/theme/brand';
 import { dialRadius } from '@/theme/expressive';
 import { DISPLAY_FONT } from '@/theme/fonts';
@@ -40,15 +39,13 @@ export default function VerdictScreen() {
   const notes = getNotesSince(windowStart);
 
   const close = (userAction: 'ignore' | 'adjust' | 'support') => {
-    const now = Date.now();
     recordVerdict({
       reason: 'negative_trend',
       windowStart,
       windowEnd,
       userAction,
-      cooldownUntilMs: now + cfg.cooldownDays * 86_400_000,
+      cooldownUntilMs: Date.now() + cfg.cooldownDays * 86_400_000,
     });
-    settings.setLastVerdictAt(now);
     refreshTrend();
     router.back();
     if (userAction === 'adjust') setPillarsOpen(true); // the sheet lives on Trend, right behind this modal

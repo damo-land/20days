@@ -2,21 +2,34 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Text, useTheme } from 'react-native-paper';
-import { listPillars, snapshotPriorities, updatePillar } from '@/db/repo';
+import { applyPillarEdit, listPillars, recordVerdict } from '@/db/repo';
+import { isoDaysAgo, todayISO } from '@/lib/date';
 import { useReduceMotion } from '@/lib/useReduceMotion';
 import { BRAND } from '@/theme/brand';
 import { DISPLAY_FONT } from '@/theme/fonts';
 import { motionTokens } from '@/theme/expressive';
+import { DEFAULT_TREND_CONFIG } from '@/trend/engine';
 import { refreshTrend } from '@/trend/refresh';
 import { PillarPicker } from './PillarPicker';
 import { PressableScale } from './PressableScale';
 
 /**
  * Edit the 3 pillars in the same slide-up sheet as About/Reminder (one overlay language app-wide).
- * Renaming keeps the existing 3 pillar slots in order (IDs + history intact) and snapshots the
- * change to priorities history. Opened from the Trend header and the Verdict "adjust" door.
+ * A name that stays keeps its pillar (id + history, matched by name); a swapped name archives the
+ * old pillar and starts a brand-new one with zero history — a replacement must never inherit the
+ * old pillar's data. Opened from the Trend header and the Verdict "adjust" door.
  */
-export function PillarsSheet({ visible, onDismiss, dial }: { visible: boolean; onDismiss: () => void; dial: number }) {
+export function PillarsSheet({
+  visible,
+  onDismiss,
+  onSaved,
+  dial,
+}: {
+  visible: boolean;
+  onDismiss: () => void;
+  onSaved?: () => void;
+  dial: number;
+}) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const reduce = useReduceMotion();
@@ -33,12 +46,22 @@ export function PillarsSheet({ visible, onDismiss, dial }: { visible: boolean; o
   }, [visible, dial, reduce, y]);
 
   const save = () => {
-    snapshotPriorities('edited pillars');
-    listPillars().forEach((p, i) => {
-      const name = selected[i]?.trim();
-      if (name && name !== p.name) updatePillar(p.id, { name });
-    });
-    refreshTrend();
+    const edit = applyPillarEdit(selected);
+    if (edit.replaced) {
+      // A replaced pillar is a deliberate reset — restart the checkpoint cooldown (same
+      // mechanism as a Verdict Day) so we don't alarm about a pillar the user just acted on.
+      recordVerdict({
+        reason: 'pillar_change',
+        windowStart: isoDaysAgo(DEFAULT_TREND_CONFIG.windowDays - 1),
+        windowEnd: todayISO(),
+        userAction: 'adjust',
+        cooldownUntilMs: Date.now() + DEFAULT_TREND_CONFIG.cooldownDays * 86_400_000,
+      });
+    }
+    if (edit.changed) {
+      refreshTrend();
+      onSaved?.();
+    }
     onDismiss();
   };
 

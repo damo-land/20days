@@ -70,13 +70,13 @@ export default function TodayScreen() {
   return (
     <ScrollView
       style={{ backgroundColor: theme.colors.background }}
-      contentContainerStyle={[styles.container, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 40 }]}
+      contentContainerStyle={[styles.container, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24 }]}
     >
       <AnimatedCard index={0} dial={dial}>
         <Text variant="labelMedium" style={[styles.date, { color: theme.colors.onSurfaceVariant }]}>
           {format(new Date(), 'EEEE · d MMMM')}
         </Text>
-        <Text variant="displayLarge" style={[styles.big, { color: theme.colors.onSurface }]}>
+        <Text variant="displayMedium" style={[styles.big, { color: theme.colors.onSurface }]}>
           Today
         </Text>
         <Text variant="bodyMedium" style={styles.sub}>
@@ -96,7 +96,7 @@ export default function TodayScreen() {
                     {p.name}
                   </Text>
                 </View>
-                <ScoreBadge value={scores[p.id] ?? null} color={c} surface={theme.colors.surface} size={56} />
+                <ScoreBadge value={scores[p.id] ?? null} color={c} surface={theme.colors.surface} size={48} />
               </View>
               <ScorePicker value={scores[p.id] ?? null} onChange={(v) => setScores((s) => ({ ...s, [p.id]: v }))} color={c} />
             </AnimatedCard>
@@ -136,14 +136,14 @@ const styles = StyleSheet.create({
   date: { textTransform: 'uppercase', letterSpacing: 1.4 },
   big: { fontFamily: DISPLAY_FONT, marginTop: 2, letterSpacing: -1 },
   sub: { opacity: 0.75, marginTop: 8 },
-  list: { marginTop: 16, gap: 16 },
-  card: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 20 },
+  list: { marginTop: 12, gap: 12 },
+  card: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   nameRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 9 },
   pillarName: { flexShrink: 1 },
-  note: { marginTop: 20, backgroundColor: 'transparent' },
+  note: { marginTop: 14, backgroundColor: 'transparent' },
   noteOutline: { borderRadius: 18 },
-  save: { marginTop: 20, height: 60, alignItems: 'center', justifyContent: 'center' },
+  save: { marginTop: 16, height: 54, alignItems: 'center', justifyContent: 'center' },
   cta: { fontFamily: 'Roboto_500Medium', fontSize: 18, letterSpacing: 0.2 },
   skipLabel: { fontSize: 15 },
 });

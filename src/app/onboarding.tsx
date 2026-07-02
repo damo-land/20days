@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, useTheme } from 'react-native-paper';
@@ -33,8 +33,11 @@ export default function Onboarding() {
   const [selected, setSelected] = useState<string[]>([]);
   const ready = selected.length === 3;
   const last = step === 1;
+  const started = useRef(false); // double-tap on Start must not run onboarding twice
 
   const start = () => {
+    if (started.current) return;
+    started.current = true;
     createInitialPillars(selected);
     settings.setOnboarded(true);
     refreshTrend();

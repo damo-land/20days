@@ -16,7 +16,7 @@ export async function ensureDailyReminder(time: string, enabled: boolean): Promi
   if (!granted) return;
 
   await Notifications.scheduleNotificationAsync({
-    content: { title: '20days', body: 'How were your pillars today?' },
+    content: { title: 'Mood check - 20days', body: 'How are your pillars today?' },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
       hour,
