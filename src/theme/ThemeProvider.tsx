@@ -1,16 +1,29 @@
 import type { ReactNode } from 'react';
-import { useMemo } from 'react';
+import { createContext, useContext, useMemo } from 'react';
+import { useColorScheme } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
-import { useAppStore } from '@/state/store';
+import { tones, type Tones } from './brand';
 import { buildTheme } from './theme';
 
+const TonesContext = createContext<Tones>(tones(false));
+
+/** The Full Stop tokens for the current mode — the primary styling handle app-wide. */
+export function useTones(): Tones {
+  return useContext(TonesContext);
+}
+
 /**
- * Wraps the app in the 20days theme — fixed warm neutrals, accent follows the current trend.
- * The brand is the warm Cream/Ink light palette, locked: system dark mode is deliberately
- * ignored (a dark system scheme turned the whole app Ink-on-Ink on device).
+ * Ink on Paper, either way round (docs/DESIGN.md §2): the system scheme picks the mode and
+ * everything swaps wholesale. No trend-driven chrome colour any more — the trend speaks
+ * through words and dots.
  */
 export function AppThemeProvider({ children }: { children: ReactNode }) {
-  const trendState = useAppStore((s) => s.trendState);
-  const theme = useMemo(() => buildTheme(trendState, false), [trendState]);
-  return <PaperProvider theme={theme}>{children}</PaperProvider>;
+  const dark = useColorScheme() === 'dark';
+  const theme = useMemo(() => buildTheme(dark), [dark]);
+  const t = useMemo(() => tones(dark), [dark]);
+  return (
+    <TonesContext.Provider value={t}>
+      <PaperProvider theme={theme}>{children}</PaperProvider>
+    </TonesContext.Provider>
+  );
 }

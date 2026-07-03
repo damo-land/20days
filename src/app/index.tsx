@@ -1,35 +1,58 @@
+import { format } from 'date-fns';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, useTheme } from 'react-native-paper';
 import { AboutSheet } from '@/components/AboutSheet';
 import { AnimatedCard } from '@/components/AnimatedCard';
-import { Fab } from '@/components/Fab';
-import { Icon, type IconName } from '@/components/Icon';
-import { NestedRings, type RingDatum } from '@/components/NestedRings';
+import { BottomNav } from '@/components/BottomNav';
+import { DayDots } from '@/components/DayDots';
+import { MenuSheet } from '@/components/MenuSheet';
 import { PillarsSheet } from '@/components/PillarsSheet';
-import { PressableScale } from '@/components/PressableScale';
+import { PillButton } from '@/components/PillButton';
 import { ReminderSheet } from '@/components/ReminderSheet';
-import { DayBars } from '@/components/DayBars';
-import { SegmentedFilter } from '@/components/SegmentedFilter';
+import { Rule } from '@/components/Rule';
+import { Stop } from '@/components/Stop';
+import { VerdictSheet } from '@/components/VerdictSheet';
 import { SCALE } from '@/config';
 import { getEntriesForDate, getPillarScoreRowsSince, listPillars } from '@/db/repo';
 import { isoDaysAgo, todayISO } from '@/lib/date';
 import { settings } from '@/settings/settings';
-import { hexMix } from '@/theme/brand';
-import { scoreColor } from '@/theme/category';
-import { accentEnergy, dialRadius } from '@/theme/expressive';
-import { DISPLAY_FONT } from '@/theme/fonts';
-import { pillarIcon } from '@/theme/pillarMeta';
-import { trendColor } from '@/theme/trendColor';
+import { hexMix, NUMBER_FONT, STATE_BLOCKS, TYPE } from '@/theme/brand';
+import { useTones } from '@/theme/ThemeProvider';
 import { useAppStore } from '@/state/store';
-import { DEFAULT_TREND_CONFIG, type DayPoint } from '@/trend/engine';
-import { buildPillarTrends, decliningPillars, joinNames, pillarHighlight, type PillarTrend } from '@/trend/pillars';
+import { DEFAULT_TREND_CONFIG, type DayPoint, type TrendState } from '@/trend/engine';
+import { buildPillarTrends, joinNames, decliningPillars, type PillarTrend } from '@/trend/pillars';
 import { refreshTrend } from '@/trend/refresh';
 import { buildDailySeries } from '@/trend/series';
 
 const NEUTRAL_SCORE = (SCALE.min + SCALE.max) / 2; // scale midpoint — matches the trend engine's neutral fill
+
+/**
+ * The screen's one sentence — the headline IS the reading (docs/DESIGN.md §1). When the
+ * trend-triggered checkpoint is live (declining + confident + past cooldown), it takes the
+ * headline over: one message per screen, never a repeat below.
+ */
+function headlineFor(state: TrendState, confident: boolean, checkpoint: boolean): string {
+  if (checkpoint) return 'Worth a look';
+  if (!confident) return 'Still coming into focus';
+  switch (state) {
+    case 'improving':
+      return 'Quietly improving';
+    case 'declining':
+      return 'Drifting down';
+    default:
+      return 'Holding steady';
+  }
+}
+
+/** The pillar row's trend word — lowercase, faded, plain ink (never colour-coded). */
+const TREND_WORD: Record<TrendState, string> = {
+  improving: 'rising',
+  stable: 'steady',
+  declining: 'sliding',
+  insufficient: 'settling in',
+};
 
 function statsOf(points: DayPoint[], neutral: number) {
   // Average treats unlogged days as neutral (an "unknown = neutral" prior, matching the trend
@@ -39,30 +62,17 @@ function statsOf(points: DayPoint[], neutral: number) {
   return { avg, logged };
 }
 
-/** Current run of recent days at a positive level (≥4/5). A missed day doesn't break it. */
-function positiveStreak(points: DayPoint[]): number {
-  let n = 0;
-  for (let i = points.length - 1; i >= 0; i--) {
-    const v = points[i].value;
-    if (v == null) continue;
-    if (v >= 4) n += 1;
-    else break;
-  }
-  return n;
-}
-
 export default function TrendHome() {
   const cfg = DEFAULT_TREND_CONFIG;
-  const theme = useTheme();
+  const t = useTones();
   const insets = useSafeAreaInsets();
   const { width: W } = useWindowDimensions();
   const [series, setSeries] = useState<DayPoint[]>([]);
   const [trends, setTrends] = useState<PillarTrend[]>([]);
-  const [latest, setLatest] = useState<Record<number, number | null>>({});
-  const [hasToday, setHasToday] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const [filter, setFilter] = useState(-1); // -1 = All, else pillar index
+  const [verdictOpen, setVerdictOpen] = useState(false);
   const trendState = useAppStore((s) => s.trendState);
   const confident = useAppStore((s) => s.trend?.confident ?? false);
   const verdictReady = useAppStore((s) => s.verdictReady);
@@ -80,17 +90,8 @@ export default function TrendHome() {
     const rows = getPillarScoreRowsSince(windowStart);
     setSeries(buildDailySeries(rows, cfg.windowDays, date));
     const loggedToday = getEntriesForDate(date).length > 0;
-    setHasToday(loggedToday);
     const pillars = listPillars();
     setTrends(buildPillarTrends(rows, pillars, cfg.windowDays, date));
-    const lt: Record<number, number | null> = {};
-    const byPillar: Record<number, { date: string; score: number }> = {};
-    for (const r of rows) {
-      const cur = byPillar[r.pillarId];
-      if (!cur || r.date > cur.date) byPillar[r.pillarId] = { date: r.date, score: r.score };
-    }
-    pillars.forEach((p) => (lt[p.id] = byPillar[p.id]?.score ?? null));
-    setLatest(lt);
     refreshTrend();
 
     if (!gateRan.current) {
@@ -101,127 +102,108 @@ export default function TrendHome() {
 
   useFocusEffect(load);
 
-  const logged = series.filter((p) => p.value != null);
-  const current = logged.length ? (logged[logged.length - 1].value as number) : null;
-
-  const rings: RingDatum[] = trends.map((t) => ({
-    name: t.name,
-    value: latest[t.pillarId] ?? null,
-    color: scoreColor(latest[t.pillarId] ?? null),
-    icon: pillarIcon(t.name),
-  }));
-
-  // Chart follows the filter: All = composite (trend colour), else the pillar's own value colour.
-  const chartPoints = filter === -1 ? series : trends[filter]?.points ?? [];
-  const chartColor = filter === -1 ? accentEnergy(dial, trendColor(trendState)) : scoreColor(latest[trends[filter]?.pillarId] ?? null);
-  const stats = statsOf(chartPoints, NEUTRAL_SCORE);
-  const streak = positiveStreak(chartPoints);
-
-  // A personal reading only once there's enough real data; below that we stay low-confidence.
-  const highlight = confident ? pillarHighlight(trends) : null;
+  const stats = statsOf(series, NEUTRAL_SCORE);
   const sliding = decliningPillars(trends);
 
-  const radius = Math.max(dialRadius(dial), 24);
-
-  const HeaderIcon = ({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) => (
-    <PressableScale dial={dial} onPress={onPress} accessibilityLabel={label} style={[styles.iconBtn, { backgroundColor: theme.colors.elevation.level2 }]}>
-      <Icon name={icon} size={21} color={theme.colors.onSurfaceVariant} />
-    </PressableScale>
-  );
+  // One Modal can't swap for another in the same tick — close the menu, then open after a beat.
+  const fromMenu = (open: () => void) => {
+    setMenuOpen(false);
+    setTimeout(open, 300);
+  };
 
   // Redirect covers the desync case too: onboarded flag set but no pillars in the DB.
   if (!settings.isOnboarded() || listPillars().length === 0) return <Redirect href="/onboarding" />;
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <ScrollView contentContainerStyle={[styles.container, { paddingTop: insets.top + 16, paddingBottom: 160 }]}>
+    <View style={{ flex: 1, backgroundColor: t.paper }}>
+      <ScrollView contentContainerStyle={[styles.container, { paddingTop: insets.top + 18, paddingBottom: 140 }]}>
         <AnimatedCard index={0} dial={dial}>
-          <View style={styles.topBar}>
-            <Text variant="labelMedium" style={[styles.eyebrow, { color: theme.colors.onSurfaceVariant }]}>
-              Last {cfg.windowDays} days
-            </Text>
-            <View style={styles.actions}>
-              <HeaderIcon icon="info" label="About 20days" onPress={() => setAboutOpen(true)} />
-              <HeaderIcon icon="bell" label="Reminder" onPress={() => setReminderOpen(true)} />
-              <HeaderIcon icon="sliders" label="Edit pillars" onPress={() => setPillarsOpen(true)} />
-            </View>
+          <View style={styles.topRow}>
+            <Text style={[TYPE.micro, { color: t.faded }]}>{format(new Date(), 'EEEE d MMMM')}</Text>
+            <Pressable onPress={() => setMenuOpen(true)} accessibilityRole="button" accessibilityLabel="Menu" hitSlop={12}>
+              <Text style={[styles.menuDots, { color: t.ink }]}>···</Text>
+            </Pressable>
           </View>
-          <Text variant="displayMedium" style={styles.big}>
-            Your trend
+          <Text style={[TYPE.display, styles.headline, { color: t.ink }]}>
+            {headlineFor(trendState, confident, verdictReady)}
+            <Stop size={TYPE.display.fontSize} />
           </Text>
-          {!confident ? (
-            <Text variant="bodyMedium" style={[styles.learningLine, { color: theme.colors.onSurfaceVariant }]}>
-              Still learning about you — keep checking in and your trend comes into focus.
-            </Text>
-          ) : null}
-        </AnimatedCard>
-
-        {/* Hero — 3/4 rings sit open on the surface (no card); legend lives in the ring's top-left opening */}
-        <AnimatedCard index={1} dial={dial} style={styles.hero}>
-          <NestedRings rings={rings} max={SCALE.max} center={current != null ? current.toFixed(1) : '–'} size={258} />
-          {highlight ? (
-            <Text variant="titleMedium" style={[styles.highlight, { color: theme.colors.onSurface }]}>
-              {highlight}
-            </Text>
-          ) : null}
-        </AnimatedCard>
-
-        {/* Chart — full-bleed, no card, with a segmented pillar filter */}
-        <AnimatedCard index={2} dial={dial} style={styles.chartSection}>
-          <SegmentedFilter
-            options={[{ key: '-1', label: 'All' }, ...trends.map((t, i) => ({ key: String(i), label: t.name }))]}
-            selectedKey={String(filter)}
-            onSelect={(k) => setFilter(Number(k))}
-            dial={dial}
-            colorFor={(k) => (k === '-1' ? theme.colors.primary : scoreColor(latest[trends[Number(k)]?.pillarId] ?? null))}
-          />
-
-          <View style={{ marginTop: 10, marginBottom: 6 }}>
-            <DayBars data={chartPoints} width={W - 40} height={88} />
-          </View>
-
-          <View style={styles.stats}>
-            <Stat label="Average" value={stats.avg != null ? stats.avg.toFixed(1) : '–'} color={chartColor} />
-            <Stat label="Positive run" value={streak > 0 ? `${streak}d` : '–'} color={chartColor} />
-            <Stat label="Days logged" value={`${stats.logged}/${cfg.windowDays}`} color={chartColor} />
-          </View>
+          <Rule />
         </AnimatedCard>
 
         {verdictReady ? (
-          <AnimatedCard
-            index={3}
-            dial={dial}
-            style={[styles.checkpoint, { backgroundColor: theme.colors.secondaryContainer, borderColor: theme.colors.secondary, borderRadius: radius }]}
-          >
-            <Text variant="labelSmall" style={[styles.eyebrow, { color: theme.colors.secondary }]}>
-              ● Checkpoint
-            </Text>
-            <Text variant="titleMedium" style={styles.cpMsg}>
+          <AnimatedCard index={1} dial={dial} style={styles.checkpoint}>
+            <Text style={[TYPE.body, { color: t.faded }]}>
               {sliding.length
-                ? `Your scores have drifted down — ${joinNames(sliding)} most of all. A real problem, or a rough patch?`
-                : 'Your scores have drifted down. A real problem, or a rough patch?'}
+                ? `${joinNames(sliding)} ${sliding.length > 1 ? 'have' : 'has'} been drifting down for a while. A real problem, or a rough patch? Your own numbers and notes, side by side.`
+                : 'Your scores have been drifting down for a while. A real problem, or a rough patch? Your own numbers and notes, side by side.'}
             </Text>
-            <PressableScale
-              dial={dial}
-              onPress={() => router.push('/verdict')}
-              accessibilityLabel="Look together"
-              style={[styles.cta, { backgroundColor: theme.colors.primary, borderRadius: radius }]}
-            >
-              <Text style={{ fontFamily: 'Roboto_500Medium', fontSize: 18, color: theme.colors.onPrimary }}>Look together</Text>
-            </PressableScale>
+            <View style={{ marginTop: 16 }}>
+              <PillButton label="See what's sliding" onPress={() => setVerdictOpen(true)} dial={dial} />
+            </View>
           </AnimatedCard>
         ) : null}
+
+        <AnimatedCard index={verdictReady ? 2 : 1} dial={dial} style={styles.pillars}>
+          <Text style={[TYPE.micro, { color: t.faded, marginBottom: 10 }]}>Pillars · latest score &amp; last 7 days</Text>
+          <View style={styles.blocks}>
+            {trends.map((p) => (
+              <PillarBlock key={p.pillarId} p={p} />
+            ))}
+          </View>
+        </AnimatedCard>
+
+        <AnimatedCard index={verdictReady ? 3 : 2} dial={dial} style={styles.chart}>
+          <Text style={[TYPE.title, { color: t.ink }]}>The bigger picture</Text>
+          <Text style={[TYPE.label, { color: t.faded, marginTop: 2, marginBottom: 16 }]}>
+            Every day from all three pillars, the last {cfg.windowDays} days
+          </Text>
+          <DayDots data={series} width={W - 48} height={96} />
+          <View style={styles.statBand}>
+            <View style={styles.statCell}>
+              <Text style={[styles.statNum, { color: t.ink }]}>{stats.avg != null ? stats.avg.toFixed(1) : '–'}</Text>
+              <Text style={[TYPE.micro, { color: t.faded, marginTop: 4 }]}>Average</Text>
+            </View>
+            <View style={[styles.statCell, styles.statCellDivided, { borderLeftColor: t.hair }]}>
+              <Text style={[styles.statNum, { color: t.ink }]}>
+                {stats.logged}
+                <Text style={[styles.statNumSmall, { color: t.faded }]}> /{cfg.windowDays}</Text>
+              </Text>
+              <Text style={[TYPE.micro, { color: t.faded, marginTop: 4 }]}>Days logged</Text>
+            </View>
+          </View>
+          {!confident ? (
+            <Text style={[TYPE.body, { color: t.faded, marginTop: 14 }]}>
+              Keep checking in. Your trend comes into focus with more days.
+            </Text>
+          ) : null}
+        </AnimatedCard>
       </ScrollView>
 
-      <Fab dial={dial} onPress={() => router.push('/today')} label={hasToday ? undefined : 'Log today'} icon={hasToday ? 'check' : 'plus'} />
+      <BottomNav
+        activeKey="trend"
+        tabs={[
+          { key: 'trend', label: 'trend', onPress: () => {} },
+          { key: 'today', label: 'today', onPress: () => router.push('/today') },
+        ]}
+      />
+      <MenuSheet
+        visible={menuOpen}
+        onDismiss={() => setMenuOpen(false)}
+        items={[
+          { label: 'Edit pillars', onPress: () => fromMenu(() => setPillarsOpen(true)) },
+          { label: 'Daily reminder', onPress: () => fromMenu(() => setReminderOpen(true)) },
+          { label: 'About 20days', onPress: () => fromMenu(() => setAboutOpen(true)) },
+        ]}
+      />
       <ReminderSheet visible={reminderOpen} onDismiss={() => setReminderOpen(false)} dial={dial} />
       <AboutSheet visible={aboutOpen} onDismiss={() => setAboutOpen(false)} dial={dial} />
-      <PillarsSheet
-        visible={pillarsOpen}
-        onDismiss={() => setPillarsOpen(false)}
-        onSaved={() => {
-          setFilter(-1); // a stale pillar-index filter could silently point at a different pillar
-          load();
+      <PillarsSheet visible={pillarsOpen} onDismiss={() => setPillarsOpen(false)} onSaved={load} dial={dial} />
+      <VerdictSheet
+        visible={verdictOpen}
+        onDismiss={() => {
+          setVerdictOpen(false);
+          load(); // a door may have recorded a verdict — refresh the checkpoint state
         }}
         dial={dial}
       />
@@ -229,33 +211,50 @@ export default function TrendHome() {
   );
 }
 
-function Stat({ label, value, color }: { label: string; value: string; color: string }) {
-  const theme = useTheme();
-  // Filled tonal block in the chart's colour (M3 Expressive) — not cream + hairline.
+/**
+ * A pillar's state block (user-requested): soft hue wash when the pillar is MOVING
+ * (mint = rising, coral = sliding), neutral paper wash when steady — colour keeps meaning.
+ * Everything on a wash is tone-on-tone: deep-hue trend word, number and today-dot.
+ */
+function PillarBlock({ p }: { p: PillarTrend }) {
+  const t = useTones();
+  const moving = p.state === 'improving' || p.state === 'declining';
+  const block = moving ? STATE_BLOCKS[p.state as 'improving' | 'declining'][t.dark ? 'dark' : 'light'] : null;
+  const latest = [...p.points].reverse().find((x) => x.value != null)?.value ?? null;
   return (
-    <View style={[styles.statCard, { backgroundColor: hexMix(theme.colors.surface, color, 0.14) }]}>
-      <Text style={{ fontFamily: DISPLAY_FONT, fontSize: 28, color: theme.colors.onSurface }}>{value}</Text>
-      <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 4 }}>
-        {label}
-      </Text>
+    <View style={[styles.block, { backgroundColor: block?.wash ?? hexMix(t.paper, t.ink, 0.045) }]}>
+      <View style={styles.blockName}>
+        <Text style={[TYPE.title, { color: t.ink }]} numberOfLines={1}>
+          {p.name}
+        </Text>
+        <Text style={[TYPE.label, { color: block?.deep ?? t.faded, marginTop: 2 }]}>{TREND_WORD[p.state]}</Text>
+      </View>
+      <DayDots
+        data={p.points.slice(-7)}
+        width={100}
+        height={38}
+        tint={block ? { fill: block.dot, faint: block.faint, today: block.deep } : undefined}
+      />
+      <Text style={[styles.blockNum, { color: block?.deep ?? t.ink }]}>{latest ?? '–'}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, gap: 4 },
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  actions: { flexDirection: 'row', gap: 8 },
-  iconBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  eyebrow: { textTransform: 'uppercase', letterSpacing: 1.6 },
-  big: { fontFamily: DISPLAY_FONT, letterSpacing: -1, marginTop: 2 },
-  hero: { alignItems: 'center', marginTop: 44, gap: 12 },
-  chartSection: { marginTop: 40 },
-  stats: { flexDirection: 'row', gap: 10, marginTop: 10 },
-  statCard: { flex: 1, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 14 },
-  checkpoint: { padding: 18, marginTop: 20, borderWidth: 1 },
-  cpMsg: { marginTop: 10 },
-  cta: { marginTop: 16, height: 52, alignItems: 'center', justifyContent: 'center' },
-  learningLine: { marginTop: 8 },
-  highlight: { textAlign: 'center', opacity: 0.9 },
+  container: { paddingHorizontal: 24 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  menuDots: { fontFamily: 'FunnelDisplay_600SemiBold', fontSize: 22, lineHeight: 22, letterSpacing: 1 },
+  headline: { marginTop: 10 },
+  checkpoint: { marginTop: 18 },
+  chart: { marginTop: 34 },
+  statBand: { flexDirection: 'row', marginTop: 22 },
+  statCell: { flex: 1 },
+  statCellDivided: { borderLeftWidth: 1, paddingLeft: 24 },
+  statNum: { fontFamily: NUMBER_FONT, fontSize: 30, lineHeight: 34, fontVariant: ['tabular-nums'] },
+  statNumSmall: { fontFamily: NUMBER_FONT, fontSize: 18 },
+  pillars: { marginTop: 26 },
+  blocks: { gap: 10 },
+  block: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 16 },
+  blockName: { flex: 1, paddingRight: 4 },
+  blockNum: { fontFamily: NUMBER_FONT, fontSize: 30, lineHeight: 34, fontVariant: ['tabular-nums'], minWidth: 24, textAlign: 'right' },
 });

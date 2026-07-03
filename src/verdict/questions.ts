@@ -31,7 +31,7 @@ const GENERIC: string[] = [
 
 /** The core signal-vs-illusion question — the app's whole purpose, always asked last. */
 const SIGNAL_VS_NOISE =
-  'Does this feel like a rough patch with a cause likely to pass — or a slower pattern worth acting on?';
+  'Does this feel like a rough patch with a cause likely to pass, or a slower pattern worth acting on?';
 
 /** Stable, non-random pick so the same window always shows the same questions (no Math.random). */
 function pick(name: string, n: number): string[] {
@@ -51,7 +51,7 @@ function charSum(s: string): number {
 /** When two+ pillars slide together, name it — they usually share a cause (user's own intuition). */
 function relational(names: string[]): string {
   const [a, b] = names;
-  return `${a} and ${b} dipped around the same time — could one be affecting the other?`;
+  return `${a} and ${b} dipped around the same time. Could one be affecting the other?`;
 }
 
 /**

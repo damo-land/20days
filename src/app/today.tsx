@@ -1,48 +1,50 @@
 import { format } from 'date-fns';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Text, TextInput, useTheme } from 'react-native-paper';
 import { AnimatedCard } from '@/components/AnimatedCard';
-import { Icon } from '@/components/Icon';
-import { PressableScale } from '@/components/PressableScale';
-import { ScoreBadge } from '@/components/ScoreBadge';
+import { BottomNav } from '@/components/BottomNav';
+import { PillButton } from '@/components/PillButton';
+import { Rule } from '@/components/Rule';
 import { ScorePicker } from '@/components/ScorePicker';
-import { SCALE } from '@/config';
+import { TextLink } from '@/components/TextLink';
+import { SCALE, SCALE_WORDS } from '@/config';
 import { getEntriesForDate, listPillars, upsertEntry } from '@/db/repo';
 import type { Pillar } from '@/db/schema';
 import { todayISO } from '@/lib/date';
 import { haptics } from '@/lib/haptics';
 import { settings } from '@/settings/settings';
 import { useAppStore } from '@/state/store';
-import { hexMix } from '@/theme/brand';
-import { DEFAULT_SCORE, scoreColor } from '@/theme/category';
-import { dialRadius, expressiveness, todayGreeting } from '@/theme/expressive';
-import { DISPLAY_FONT } from '@/theme/fonts';
-import { pillarIcon } from '@/theme/pillarMeta';
+import { TYPE } from '@/theme/brand';
+import { useTones } from '@/theme/ThemeProvider';
+import { DEFAULT_SCORE } from '@/theme/category';
+import { expressiveness } from '@/theme/expressive';
 
 export default function TodayScreen() {
   const date = todayISO();
-  const theme = useTheme();
+  const t = useTones();
   const insets = useSafeAreaInsets();
   const trendState = useAppStore((s) => s.trendState);
   const startWipe = useAppStore((s) => s.startWipe);
   const [pillars, setPillars] = useState<Pillar[]>([]);
   const [scores, setScores] = useState<Record<number, number | null>>({});
-  const [note, setNote] = useState('');
+  const [notes, setNotes] = useState<Record<number, string>>({});
 
   const load = useCallback(() => {
     const ps = listPillars();
     setPillars(ps);
     const existing = getEntriesForDate(date);
-    const map: Record<number, number | null> = {};
+    const sMap: Record<number, number | null> = {};
+    const nMap: Record<number, string> = {};
     ps.forEach((p) => {
+      const e = existing.find((x) => x.pillarId === p.id);
       // Middle of the scale by default — the user just nudges from neutral.
-      map[p.id] = existing.find((e) => e.pillarId === p.id)?.score ?? DEFAULT_SCORE;
+      sMap[p.id] = e?.score ?? DEFAULT_SCORE;
+      nMap[p.id] = e?.note ?? '';
     });
-    setScores(map);
-    setNote(existing.find((e) => e.note)?.note ?? '');
+    setScores(sMap);
+    setNotes(nMap);
   }, [date]);
 
   useFocusEffect(useCallback(() => load(), [load]));
@@ -50,16 +52,15 @@ export default function TodayScreen() {
   const todayVals = pillars.map((p) => scores[p.id]).filter((v): v is number => v != null);
   const todayComposite = todayVals.length ? todayVals.reduce((a, b) => a + b, 0) / todayVals.length : null;
   const dial = expressiveness(trendState, todayComposite, SCALE.min, SCALE.max);
-  const radius = Math.max(dialRadius(dial), 24);
 
   const save = () => {
     for (const p of pillars) {
       const v = scores[p.id];
-      if (v != null) upsertEntry({ pillarId: p.id, date, score: v, note: note || null, scaleVersion: SCALE.version });
+      if (v != null) upsertEntry({ pillarId: p.id, date, score: v, note: notes[p.id]?.trim() || null, scaleVersion: SCALE.version });
     }
     haptics.success();
-    // Fire the wipe (a root overlay) — it covers, navigates back to Trend, then reveals.
-    startWipe([scoreColor(scores[pillars[0]?.id] ?? null), scoreColor(scores[pillars[1]?.id] ?? null), theme.colors.primary]);
+    // Monochrome wipe (a root overlay) — covers, navigates back to Trend, then reveals.
+    startWipe([t.faint, t.ink]);
   };
 
   const skip = () => {
@@ -67,86 +68,87 @@ export default function TodayScreen() {
     router.back();
   };
 
+  const hour = new Date().getHours();
+  const eyebrow = `${format(new Date(), 'EEEE')} ${hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'}`;
+  // The day is still going until the evening — the tense follows the clock.
+  const headline = hour < 17 ? 'How is today going?' : 'How was today?';
+
   return (
-    <ScrollView
-      style={{ backgroundColor: theme.colors.background }}
-      contentContainerStyle={[styles.container, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24 }]}
-      automaticallyAdjustKeyboardInsets
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="interactive"
-    >
-      <AnimatedCard index={0} dial={dial}>
-        <Text variant="labelMedium" style={[styles.date, { color: theme.colors.onSurfaceVariant }]}>
-          {format(new Date(), 'EEEE · d MMMM')}
-        </Text>
-        <Text variant="displayMedium" style={[styles.big, { color: theme.colors.onSurface }]}>
-          Today
-        </Text>
-        <Text variant="bodyMedium" style={styles.sub}>
-          {todayGreeting(dial, new Date().getHours())}
-        </Text>
-      </AnimatedCard>
+    <View style={{ flex: 1, backgroundColor: t.paper }}>
+      <ScrollView
+        contentContainerStyle={[styles.container, { paddingTop: insets.top + 18, paddingBottom: 140 }]}
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
+        <AnimatedCard index={0} dial={dial}>
+          <Text style={[TYPE.micro, { color: t.faded }]}>{eyebrow}</Text>
+          {/* A question keeps its question mark — the stop is for statements (DESIGN.md §4). */}
+          <Text style={[TYPE.display, styles.headline, { color: t.ink }]}>{headline}</Text>
+          <Rule />
+        </AnimatedCard>
 
-      <View style={styles.list}>
-        {pillars.map((p, i) => {
-          const c = scoreColor(scores[p.id] ?? null);
-          return (
-            <AnimatedCard key={p.id} index={i + 1} dial={dial} style={[styles.card, { backgroundColor: hexMix(theme.colors.surface, c, 0.16), borderRadius: radius }]}>
-              <View style={styles.cardHead}>
-                <View style={styles.nameRow}>
-                  <Icon name={pillarIcon(p.name)} size={18} color={theme.colors.onSurfaceVariant} />
-                  <Text variant="titleLarge" style={styles.pillarName}>
-                    {p.name}
-                  </Text>
-                </View>
-                <ScoreBadge value={scores[p.id] ?? null} color={c} surface={theme.colors.surface} size={48} />
+        <View style={styles.list}>
+          {/* The note's underline closes each block — no extra divider (one line, one job). */}
+          {pillars.map((p, i) => (
+            <AnimatedCard key={p.id} index={i + 1} dial={dial} style={styles.pillar}>
+              <View style={styles.pillarHead}>
+                <Text style={[TYPE.title, { color: t.ink }]} numberOfLines={1}>
+                  {p.name}
+                </Text>
+                {/* The selection, said in a word — the picker stays wordless dots. */}
+                <Text style={[TYPE.label, { color: t.faded }]}>
+                  {scores[p.id] != null ? SCALE_WORDS[(scores[p.id] as number) - 1] : ''}
+                </Text>
               </View>
-              <ScorePicker value={scores[p.id] ?? null} onChange={(v) => setScores((s) => ({ ...s, [p.id]: v }))} color={c} />
+              <ScorePicker value={scores[p.id] ?? null} onChange={(v) => setScores((s) => ({ ...s, [p.id]: v }))} />
+              <TextInput
+                value={notes[p.id] ?? ''}
+                onChangeText={(txt) => setNotes((n) => ({ ...n, [p.id]: txt }))}
+                placeholder="add a note…"
+                placeholderTextColor={t.faded}
+                style={[styles.note, { color: t.ink, borderBottomColor: t.hair }]}
+                accessibilityLabel={`Note for ${p.name}`}
+              />
             </AnimatedCard>
-          );
-        })}
-      </View>
+          ))}
+        </View>
 
-      <AnimatedCard index={pillars.length + 1} dial={dial}>
-        <TextInput
-          mode="outlined"
-          label="Note (optional)"
-          value={note}
-          onChangeText={setNote}
-          multiline
-          style={styles.note}
-          outlineStyle={styles.noteOutline}
-        />
-        <PressableScale
-          dial={dial}
-          onPress={save}
-          accessibilityLabel="Submit"
-          style={[styles.save, { borderRadius: radius, backgroundColor: theme.colors.primary }]}
-        >
-          <Text style={[styles.cta, { color: theme.colors.onPrimary }]}>Save today</Text>
-        </PressableScale>
-        <Button mode="text" onPress={skip} textColor={theme.colors.onSurfaceVariant} style={styles.skipBtn} labelStyle={styles.skipLabel}>
-          Skip for today
-        </Button>
-      </AnimatedCard>
-    </ScrollView>
+        <AnimatedCard index={pillars.length + 1} dial={dial}>
+          <View style={styles.save}>
+            <PillButton label="Save today" onPress={save} dial={dial} />
+          </View>
+          <View style={styles.skip}>
+            <TextLink label="skip for today" onPress={skip} color={t.faded} size={14} align="center" />
+          </View>
+        </AnimatedCard>
+      </ScrollView>
+
+      <BottomNav
+        activeKey="today"
+        tabs={[
+          { key: 'trend', label: 'trend', onPress: () => (router.canGoBack() ? router.back() : router.replace('/')) },
+          { key: 'today', label: 'today', onPress: () => {} },
+        ]}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, gap: 4 },
-  skipBtn: { marginTop: 6, alignSelf: 'center' },
-  date: { textTransform: 'uppercase', letterSpacing: 1.4 },
-  big: { fontFamily: DISPLAY_FONT, marginTop: 2, letterSpacing: -1 },
-  sub: { opacity: 0.75, marginTop: 8 },
-  list: { marginTop: 12, gap: 12 },
-  card: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
-  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  nameRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 9 },
-  pillarName: { flexShrink: 1 },
-  note: { marginTop: 14, backgroundColor: 'transparent' },
-  noteOutline: { borderRadius: 18 },
-  save: { marginTop: 16, height: 54, alignItems: 'center', justifyContent: 'center' },
-  cta: { fontFamily: 'Roboto_500Medium', fontSize: 18, letterSpacing: 0.2 },
-  skipLabel: { fontSize: 15 },
+  container: { paddingHorizontal: 24 },
+  headline: { marginTop: 10 },
+  list: { marginTop: 10 },
+  pillar: { paddingTop: 22, paddingBottom: 10 },
+  pillarHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 },
+  note: {
+    marginTop: 12,
+    fontFamily: 'FunnelSans_400Regular',
+    fontSize: 14,
+    lineHeight: 20,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  save: { marginTop: 26 },
+  skip: { marginTop: 14, alignItems: 'center' },
 });

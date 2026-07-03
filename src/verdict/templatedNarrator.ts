@@ -14,9 +14,9 @@ import type { VerdictInput, VerdictNarrative, VerdictNarrator } from './types';
 export function buildSummary(input: VerdictInput): string {
   const names = input.sliding.map((p) => p.name);
   const lead = names.length
-    ? `Your scores have drifted down over the last ${input.windowDays} days — ${joinNames(names)} most of all.`
+    ? `Your scores have drifted down over the last ${input.windowDays} days, ${joinNames(names)} most of all.`
     : `Your scores have drifted down over the last ${input.windowDays} days.`;
-  return `${lead} This isn't a diagnosis — it's just what you logged.`;
+  return `${lead} This isn't a diagnosis, just what you logged.`;
 }
 
 export const templatedNarrator: VerdictNarrator = {

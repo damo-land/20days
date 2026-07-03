@@ -1,60 +1,54 @@
 import {
-  BricolageGrotesque_300Light,
-  BricolageGrotesque_400Regular,
-  BricolageGrotesque_500Medium,
-  BricolageGrotesque_600SemiBold,
-  BricolageGrotesque_700Bold,
-  BricolageGrotesque_800ExtraBold,
-} from '@expo-google-fonts/bricolage-grotesque';
-import { Roboto_300Light, Roboto_400Regular, Roboto_500Medium } from '@expo-google-fonts/roboto';
+  FunnelDisplay_500Medium,
+  FunnelDisplay_600SemiBold,
+} from '@expo-google-fonts/funnel-display';
+import {
+  FunnelSans_400Regular,
+  FunnelSans_500Medium,
+  FunnelSans_600SemiBold,
+} from '@expo-google-fonts/funnel-sans';
 import { configureFonts, MD3LightTheme } from 'react-native-paper';
+import { TYPE } from './brand';
 
-/** Pass to expo-font `useFonts(...)`. Brand §05 weights + heavy Bricolage for M3-Expressive big numbers. */
+/** Pass to expo-font `useFonts(...)`. Funnel Display (headlines/numbers) + Funnel Sans (body/labels). */
 export const fontsToLoad = {
-  BricolageGrotesque_300Light,
-  BricolageGrotesque_400Regular,
-  BricolageGrotesque_500Medium,
-  BricolageGrotesque_600SemiBold,
-  BricolageGrotesque_700Bold,
-  BricolageGrotesque_800ExtraBold,
-  Roboto_300Light,
-  Roboto_400Regular,
-  Roboto_500Medium,
+  FunnelDisplay_500Medium,
+  FunnelDisplay_600SemiBold,
+  FunnelSans_400Regular,
+  FunnelSans_500Medium,
+  FunnelSans_600SemiBold,
 };
-
-/** Heavy display faces for the big expressive numbers (scores, composite, timers). */
-export const DISPLAY_FONT = 'BricolageGrotesque_700Bold';
-export const DISPLAY_FONT_HEAVY = 'BricolageGrotesque_800ExtraBold';
-
-// Bricolage → logo, headings, display, numbers. Roboto → interface, body, labels.
-const DISPLAY = 'BricolageGrotesque_500Medium'; // display + headings track slightly tight
-const TITLE = 'BricolageGrotesque_500Medium';
-const LABEL = 'Roboto_500Medium';
-const BODY = 'Roboto_300Light'; // Light carries longer reading (§05)
 
 const base = MD3LightTheme.fonts;
 
-function familyFor(variant: string): string {
-  if (variant.startsWith('display') || variant.startsWith('headline') || variant.startsWith('title')) {
-    return variant.startsWith('title') ? TITLE : DISPLAY;
-  }
-  if (variant.startsWith('label')) return LABEL;
-  return BODY;
-}
-
-/** Slight negative tracking on the Bricolage display/heading scale (§05: −1.5% to −3%). */
-function trackingFor(variant: string, size: number): number {
-  if (variant.startsWith('display')) return size * -0.02;
-  if (variant.startsWith('headline')) return size * -0.015;
-  if (variant.startsWith('title')) return size * -0.01;
-  return base[variant as keyof typeof base].letterSpacing ?? 0;
+/**
+ * Map every Paper variant onto the fixed six-token scale (DESIGN.md §3) so `Text variant=`
+ * can't drift off-token: display* → display, headline* → headline, title* → title,
+ * label* → label (labelSmall → micro), body* → body.
+ */
+function tokenFor(variant: string) {
+  if (variant.startsWith('display')) return TYPE.display;
+  if (variant.startsWith('headline')) return TYPE.headline;
+  if (variant.startsWith('title')) return TYPE.title;
+  if (variant === 'labelSmall') return TYPE.micro;
+  if (variant.startsWith('label')) return TYPE.label;
+  return TYPE.body;
 }
 
 const config = Object.fromEntries(
   Object.entries(base).map(([variant, def]) => {
-    const size = 'fontSize' in def ? def.fontSize : 14;
-    return [variant, { ...def, fontFamily: familyFor(variant), letterSpacing: trackingFor(variant, size) }];
+    const t = tokenFor(variant);
+    return [
+      variant,
+      {
+        ...def,
+        fontFamily: t.fontFamily,
+        fontSize: t.fontSize,
+        lineHeight: t.lineHeight,
+        letterSpacing: 'letterSpacing' in t ? t.letterSpacing : 0,
+      },
+    ];
   }),
-) as typeof base;
+) as unknown as typeof base;
 
 export const fonts = configureFonts({ config });

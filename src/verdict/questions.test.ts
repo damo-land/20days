@@ -3,7 +3,7 @@ import { buildTemplatedQuestions } from './questions';
 import type { SlidingPillar } from './types';
 
 const p = (pillarId: number, name: string): SlidingPillar => ({ pillarId, name });
-const SIGNAL = 'Does this feel like a rough patch with a cause likely to pass — or a slower pattern worth acting on?';
+const SIGNAL = 'Does this feel like a rough patch with a cause likely to pass, or a slower pattern worth acting on?';
 
 describe('buildTemplatedQuestions', () => {
   it('is deterministic — same input, same questions', () => {

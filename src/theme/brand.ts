@@ -1,24 +1,110 @@
 /**
- * 20days brand tokens — from the designer's Brand Guidelines v1 (July 2026).
- * Warm, calm base (Cream / Ink) + a trend scale that carries the meaning.
- * Trend colours live in `trendColor.ts`; this is the fixed palette + shape scale.
+ * "Full Stop" design-language tokens (docs/DESIGN.md v2, July 2026).
+ * Two surfaces (Ink on Paper, swapped wholesale for dark mode), one blue, four state hues.
+ * Chrome is never coloured; grey is always faded ink. Nothing else exists.
  */
-export const BRAND = {
-  cream: '#FDF6E9', // surface — a touch brighter than the original #FBF0E0, still warm (not white)
-  card: '#FFF7EC', // raised / card
-  containerLow: '#F3E7D2', // surface container — slightly deeper so cards read crisper on cream
-  containerHigh: '#EBDDC4', // surface container high — more separation for higher-contrast round
-  ink: '#1E2540', // text & primary — deepened from #2A3350 for stronger contrast on cream
-  slate: '#4E4C49', // body copy — deepened from #5C5A57 for more readable contrast
-  sand: '#A79470', // muted label
-  sandDeep: '#8E8168', // muted-2
-  primaryContainer: '#DEE4F1', // periwinkle (neutral accent, not a trend colour)
-  outlineLight: '#E0D5C0',
-  overlay: '#FFFFFF', // sheets / modals sit on white to separate them from the cream base
+
+/** Prime Blue — ONE hex in both modes (user-locked; no lifted dark variant). */
+export const BLUE = '#2337FF';
+
+/** State hues — exceptional, Verdict-grade only; tinted dots or one glow, never chrome. */
+export const STATE = {
+  mint: '#46C08A', // improving
+  sun: '#EFBF3C', // a dip worth watching
+  coral: '#EF6F5A', // checkpoint / declining
+  lilac: '#9C8CF2', // the user's own words
 } as const;
 
-/** Material 3 Expressive corner scale (px) from the guidelines §08. */
-export const RADIUS = { xs: 4, s: 8, m: 12, l: 16, xl: 28, full: 999 } as const;
+/** Coral tint ramp for the Verdict's sliding-pillar dots (tone on tone — no ink on colour). */
+export const CORAL_DOTS = {
+  light: { fill: '#E06450', faint: '#F0C4BA', today: '#B44430' },
+  dark: { fill: '#EF8975', faint: '#4E332E', today: '#FFB4A4' },
+} as const;
+
+/**
+ * Per-pillar state blocks on Trend (user-requested, July 2026): a soft hue wash behind the
+ * row, with everything on it tone-on-tone (deep hue text/number, hue dots). Colour only when
+ * a pillar is MOVING — steady/settling rows stay a neutral paper wash so the hues keep
+ * meaning. Solid mixed hexes (not alpha) so dark mode stays controlled.
+ */
+export interface StateBlock {
+  wash: string;
+  deep: string; // text + number + today's dot on the wash
+  dot: string; // logged-day dots
+  faint: string; // missed-day dots
+}
+
+export const STATE_BLOCKS: Record<'improving' | 'declining', { light: StateBlock; dark: StateBlock }> = {
+  improving: {
+    light: { wash: '#E4F1E9', deep: '#1E6B47', dot: '#46C08A', faint: '#C2DFD0' },
+    dark: { wash: '#17221C', deep: '#9FE0BE', dot: '#3FA377', faint: '#2C4437' },
+  },
+  declining: {
+    light: { wash: '#F9E9E4', deep: '#96371F', dot: '#E06450', faint: '#EDC7BC' },
+    dark: { wash: '#251613', deep: '#F0A18F', dot: '#C96A56', faint: '#4E332E' },
+  },
+};
+
+export interface Tones {
+  dark: boolean;
+  paper: string;
+  ink: string;
+  faded: string;
+  faint: string;
+  hair: string;
+  blue: string;
+}
+
+const LIGHT: Tones = {
+  dark: false,
+  paper: '#F6F5F1',
+  ink: '#131311',
+  faded: '#6F6E67',
+  faint: '#C9C7C0',
+  hair: 'rgba(19,19,17,0.16)',
+  blue: BLUE,
+};
+
+const DARK: Tones = {
+  dark: true,
+  paper: '#0F0F0D',
+  ink: '#F2F1EC',
+  faded: '#8E8D85',
+  faint: '#3A3A36',
+  hair: 'rgba(242,241,236,0.16)',
+  blue: BLUE,
+};
+
+export function tones(dark: boolean): Tones {
+  return dark ? DARK : LIGHT;
+}
+
+/** Splash + pre-theme surfaces (the wordmark always sits Paper-on-Ink). */
+export const INK_LIGHT = LIGHT.ink;
+export const PAPER_LIGHT = LIGHT.paper;
+export const PAPER_DARK = DARK.paper;
+
+/**
+ * The fixed type scale — six sizes, nothing in between (DESIGN.md §3). `family` keys map to
+ * fonts loaded in `fonts.ts`. Body 16 is the floor; micro is for uppercase eyebrows only.
+ */
+export const TYPE = {
+  display: { fontFamily: 'FunnelDisplay_600SemiBold', fontSize: 36, lineHeight: 40, letterSpacing: -0.54 },
+  headline: { fontFamily: 'FunnelDisplay_600SemiBold', fontSize: 28, lineHeight: 32, letterSpacing: -0.28 },
+  title: { fontFamily: 'FunnelDisplay_500Medium', fontSize: 20, lineHeight: 26 },
+  body: { fontFamily: 'FunnelSans_400Regular', fontSize: 16, lineHeight: 24 },
+  label: { fontFamily: 'FunnelSans_500Medium', fontSize: 13, lineHeight: 18 },
+  micro: {
+    fontFamily: 'FunnelSans_600SemiBold',
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase' as const,
+  },
+} as const;
+
+/** Numbers ride Funnel Display, always tabular (DESIGN.md §3). */
+export const NUMBER_FONT = 'FunnelDisplay_600SemiBold';
 
 /** Mix two hex colours; t=0 → a, t=1 → b. Small pure helper (no color dep needed). */
 export function hexMix(a: string, b: string, t: number): string {
@@ -31,51 +117,4 @@ export function hexMix(a: string, b: string, t: number): string {
 function parseHex(h: string): [number, number, number] {
   const s = h.replace('#', '');
   return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
-}
-
-/**
- * Readable text colour for a filled accent: Ink on light fills (ochre/sand end of the trend
- * scale), white on dark ones. White fails WCAG on the yellows — never hardcode it on a fill.
- */
-export function onColorFor(hex: string): string {
-  const [r, g, b] = parseHex(hex).map((n) => {
-    const c = n / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  });
-  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return luminance > 0.3 ? BRAND.ink : '#FFFFFF';
-}
-
-/**
- * Vivify a colour (colour-space extension for the expressiveness dial): nudge saturation and
- * lightness in HSL. Used to let the accent glow a little more on good days, and settle back on
- * grounded ones. `sat`/`light` are signed deltas in [-1,1].
- */
-export function vivify(hex: string, sat: number, light: number): string {
-  const [r, g, b] = parseHex(hex).map((n) => n / 255);
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  let h = 0;
-  const l = (max + min) / 2;
-  const d = max - min;
-  let s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
-  if (d !== 0) {
-    if (max === r) h = ((g - b) / d) % 6;
-    else if (max === g) h = (b - r) / d + 2;
-    else h = (r - g) / d + 4;
-    h *= 60;
-    if (h < 0) h += 360;
-  }
-  s = Math.max(0, Math.min(1, s + sat));
-  const l2 = Math.max(0, Math.min(1, l + light));
-  const c = (1 - Math.abs(2 * l2 - 1)) * s;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-  const m = l2 - c / 2;
-  const [r1, g1, b1] =
-    h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
-  const to = (v: number) =>
-    Math.round((v + m) * 255)
-      .toString(16)
-      .padStart(2, '0');
-  return `#${to(r1)}${to(g1)}${to(b1)}`;
 }

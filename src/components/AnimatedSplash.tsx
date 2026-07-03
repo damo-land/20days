@@ -1,13 +1,13 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { BRAND } from '@/theme/brand';
+import { INK_LIGHT, PAPER_LIGHT } from '@/theme/brand';
 import { Wordmark } from './Wordmark';
 
 /**
- * Branded loading screen (Brand Guidelines §03): the wordmark in Cream on Ink. Matches the
- * native splash so the handoff is seamless, springs the wordmark in, then fades over the app
- * once `ready`. RN Animated (no Reanimated/worklet config needed).
+ * Branded loading screen: the wordmark (Paper on Ink, blue stop) — the splash is always
+ * ink-side regardless of mode. Matches the native splash so the handoff is seamless, springs
+ * the wordmark in, then fades over the app once `ready`. RN Animated (no worklet dep).
  */
 export function AnimatedSplash({ ready, children }: { ready: boolean; children: ReactNode }) {
   const [hidden, setHidden] = useState(false);
@@ -36,7 +36,7 @@ export function AnimatedSplash({ ready, children }: { ready: boolean; children: 
           pointerEvents={ready ? 'none' : 'auto'}
         >
           <Animated.View style={{ transform: [{ scale }] }}>
-            <Wordmark size={56} color={BRAND.cream} />
+            <Wordmark size={56} color={PAPER_LIGHT} />
           </Animated.View>
         </Animated.View>
       )}
@@ -46,5 +46,5 @@ export function AnimatedSplash({ ready, children }: { ready: boolean; children: 
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  overlay: { backgroundColor: BRAND.ink, alignItems: 'center', justifyContent: 'center' },
+  overlay: { backgroundColor: INK_LIGHT, alignItems: 'center', justifyContent: 'center' },
 });

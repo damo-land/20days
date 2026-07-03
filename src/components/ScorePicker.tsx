@@ -1,46 +1,43 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
-import { SCALE, SCALE_LABELS } from '@/config';
+import { SCALE, SCALE_WORDS } from '@/config';
 import { haptics } from '@/lib/haptics';
 import { useReduceMotion } from '@/lib/useReduceMotion';
-import { hexMix } from '@/theme/brand';
+import { useTones } from '@/theme/ThemeProvider';
 
-/** A segment pops in with a spring when it turns on; `delay` staggers a left-to-right wave. */
-function Bar({ on, delay, color, empty, reduce }: { on: boolean; delay: number; color: string; empty: string; reduce: boolean }) {
+/** A dot pops in with a spring when it turns on; `delay` staggers a left-to-right wave (Pop). */
+function Dot({ on, delay, fill, faint, reduce }: { on: boolean; delay: number; fill: string; faint: string; reduce: boolean }) {
   const scale = useRef(new Animated.Value(1)).current;
   const prev = useRef(on);
 
   useEffect(() => {
     if (!prev.current && on && !reduce) {
-      scale.setValue(0.55);
-      Animated.spring(scale, { toValue: 1, delay, useNativeDriver: true, friction: 4.5, tension: 160 }).start();
+      scale.setValue(0.4);
+      Animated.spring(scale, { toValue: 1, delay, useNativeDriver: true, friction: 4.5, tension: 180 }).start();
     }
     prev.current = on;
   }, [on, delay, reduce, scale]);
 
-  return <Animated.View style={[styles.bar, { backgroundColor: on ? color : empty, transform: [{ scale }] }]} />;
+  return (
+    <Animated.View
+      style={[
+        styles.dot,
+        on ? { backgroundColor: fill } : { borderWidth: 1.5, borderColor: faint },
+        { transform: [{ scale }] },
+      ]}
+    />
+  );
 }
 
 /**
- * Segmented 1–5 score fill (Brand Guidelines §06). Tap a segment to score; filled bars carry
- * the pillar's trend colour, empties are a faint ink. Fast, quiet, one tap — the whole ritual.
- * Newly-filled bars ripple in from the previous value with a haptic tick; word anchors at both
- * ends so the scale never leans on colour alone.
+ * The score picker as five circles (docs/DESIGN.md §4: circle = a day, a moment) — tap the
+ * nth dot to fill 1…n in ink, with a sprung left-to-right wave and a haptic tick. Wordless:
+ * the selection's word lives beside the pillar name (the parent renders it), not under the
+ * dots — end anchors were noise three times over.
  */
-export function ScorePicker({
-  value,
-  onChange,
-  color,
-}: {
-  value: number | null;
-  onChange: (v: number) => void;
-  color?: string;
-}) {
-  const theme = useTheme();
+export function ScorePicker({ value, onChange }: { value: number | null; onChange: (v: number) => void }) {
+  const t = useTones();
   const reduce = useReduceMotion();
-  const fill = color ?? theme.colors.primary;
-  const empty = hexMix(theme.colors.surface, theme.colors.onSurface, 0.12);
 
   // Previous value → the wave starts where the fill already was, not always at 1.
   const prevValue = useRef(value);
@@ -66,30 +63,20 @@ export function ScorePicker({
               }}
               style={styles.tap}
               accessibilityRole="button"
-              accessibilityLabel={`Score ${s} of ${SCALE.max}`}
+              accessibilityLabel={`${SCALE_WORDS[s - 1]}, score ${s} of ${SCALE.max}`}
               accessibilityState={{ selected: value === s }}
             >
-              <Bar on={on} delay={delay} color={fill} empty={empty} reduce={reduce} />
+              <Dot on={on} delay={delay} fill={t.ink} faint={t.faint} reduce={reduce} />
             </Pressable>
           );
         })}
-      </View>
-      <View style={styles.ends}>
-        <Text variant="labelSmall" style={[styles.endLabel, { color: theme.colors.onSurfaceVariant }]}>
-          {SCALE_LABELS.low}
-        </Text>
-        <Text variant="labelSmall" style={[styles.endLabel, { color: theme.colors.onSurfaceVariant }]}>
-          {SCALE_LABELS.high}
-        </Text>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 7, marginTop: 12 },
-  tap: { flex: 1, paddingVertical: 7 },
-  bar: { height: 15, borderRadius: 8 },
-  ends: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 },
-  endLabel: { textTransform: 'uppercase', letterSpacing: 0.8, opacity: 0.75 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  tap: { paddingVertical: 8, paddingHorizontal: 10 },
+  dot: { width: 30, height: 30, borderRadius: 15 },
 });
