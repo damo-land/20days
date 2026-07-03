@@ -28,7 +28,7 @@ A small, private, **iOS-first** life-satisfaction tracker. The user defines **ex
 
 - `docs/RESEARCH.md` — evidence review (cite before changing data-collection / trend / Verdict-Day logic).
 - `docs/SPEC.md` — daily check-in, trend engine, Verdict Day, data model.
-- `docs/DESIGN.md` — the Full Stop design language (tokens, type scale, six motion verbs, guardrails); `docs/brand-board.html` — interactive brand board (live element demos).
+- `docs/DESIGN.md` — the Full Stop design language, structured as the SOURCE OF TRUTH for the whole damo.land app family: Part A portable system (tokens/type/shape/motion/voice/guardrails, applies to every app verbatim), Part B = 20days as reference implementation, Part C = implementation recipes + gotchas + the new-app/rebrand checklist. Copy this file into new repos to brand them. `docs/brand-board.html` — interactive brand board (live element demos).
 - `FUTURE_IDEAS.md` — post-MVP parking lot (e.g. AI accountability-partner chatbot). Don't scope-creep into MVP.
 
 ## Tech stack
