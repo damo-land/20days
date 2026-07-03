@@ -1,0 +1,33 @@
+{
+  "cli": {
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "image": "latest",
+        "buildConfiguration": "Debug",
+        "resourceClass": "large"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "image": "latest",
+        "resourceClass": "large"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "ios": {
+        "image": "latest",
+        "resourceClass": "large"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

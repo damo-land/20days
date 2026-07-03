@@ -45,7 +45,8 @@
         {
           "ios": { "buildReactNativeFromSource": true }
         }
-      ]
+      ],
+      "./plugins/withSwiftPodPin"
     ],
     "experiments": {
       "typedRoutes": true,
